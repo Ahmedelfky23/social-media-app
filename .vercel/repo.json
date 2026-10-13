@@ -1,0 +1,11 @@
+{
+  "remoteName": "origin",
+  "projects": [
+    {
+      "id": "prj_vEPqyCdusYDAfNxtyzCZn8SOFS9c",
+      "name": "social-media-app",
+      "directory": ".",
+      "orgId": "team_e1Q4JiWWIb7xYJiT6TNIbM2Z"
+    }
+  ]
+}
