@@ -26,22 +26,21 @@ export default function EditPostModal({ open, onClose, post }: EditPostModalProp
 
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const [body, setBody] = useState(post.body);
+  const [body, setBody] = useState(post?.body ?? "");
   const [image, setImage] = useState<File | null>(null);
-  const [preview, setPreview] = useState(post.image || "");
+  const [preview, setPreview] = useState(post?.image || "");
   const [imageRemoved, setImageRemoved] = useState(false);
 
-  
-  const [wasOpen, setWasOpen] = useState(open);
-  if (open !== wasOpen) {
-    setWasOpen(open);
+  useEffect(() => {
     if (open) {
-      setBody(post.body);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBody(post?.body ?? "");
       setImage(null);
-      setPreview(post.image || "");
+      setPreview(post?.image || "");
       setImageRemoved(false);
+      if (fileInput.current) fileInput.current.value = "";
     }
-  }
+  }, [open, post]);
 
   useEffect(() => {
     return () => {
@@ -98,7 +97,7 @@ export default function EditPostModal({ open, onClose, post }: EditPostModalProp
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const text = body.trim();
+    const text = (body ?? "").trim();
     if (!text && !preview) return;
 
     const formData = new FormData();
@@ -114,8 +113,15 @@ export default function EditPostModal({ open, onClose, post }: EditPostModalProp
 
   if (!open) return null;
 
-  const canSave =
-    (body.trim() !== post.body || Boolean(image) || imageRemoved) && !isPending;
+  const currentBody = (body ?? "").trim();
+  const originalBody = (post?.body ?? "").trim();
+  const hasContent = currentBody.length > 0 || Boolean(preview);
+  const hasChanges =
+    currentBody !== originalBody ||
+    Boolean(image) ||
+    imageRemoved;
+
+  const canSave = hasContent && hasChanges && !isPending;
 
   return (
     <div
@@ -150,7 +156,7 @@ export default function EditPostModal({ open, onClose, post }: EditPostModalProp
               className="h-10 w-10 shrink-0"
             />
             <textarea
-              value={body}
+              value={body ?? ""}
               onChange={(e) => setBody(e.target.value)}
               rows={3}
               placeholder="What's on your mind?"

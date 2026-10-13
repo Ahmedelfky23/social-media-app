@@ -8,7 +8,7 @@ export interface User {
 export interface PostType {
   _id: string;
   id?: string;
-  body: string;
+  body?: string;
   bookmarked: boolean;
   commentsCount: number;
   createdAt: string; 
@@ -18,7 +18,7 @@ export interface PostType {
   privacy: "public" | "friends" | "private"; 
   sharedPost: PostType | null;
   sharesCount: number;
-  image: string;
+  image?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   topComment: any | null; 
   user: User;

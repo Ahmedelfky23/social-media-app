@@ -352,11 +352,13 @@ export default function PostCard({
       )}
 
       {/* edit post modal */}
-      <EditPostModal
-        open={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        post={post}
-      />
+      {showEditModal && (
+        <EditPostModal
+          open={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          post={post}
+        />
+      )}
     </div>
   );
 }
