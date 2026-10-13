@@ -281,9 +281,9 @@ export function ReplyItem({
                 post: postId,
                 parentComment: rootId,
                 commentCreator: {
-                  _id: userLogin._id,
-                  name: userLogin.name,
-                  username: userLogin.username,
+                  _id: userLogin._id ?? "",
+                  name: userLogin.name ?? "",
+                  username: userLogin.username ?? "",
                   phone: "",
                   photo: userLogin.photo,
                 },
