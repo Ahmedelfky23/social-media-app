@@ -310,8 +310,8 @@ export default function UserSearch() {
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        placeholder="Search by name, @username, or ID..."
-        aria-label="Search users by name, username, or ID"
+        placeholder="Search by name, @username .."
+        aria-label="Search users by name, username"
         className="w-full bg-[#e5ebf7] dark:bg-[#1e293b] rounded-full py-2 sm:py-2 pl-9 sm:pl-10 pr-9 min-h-10 text-xs sm:text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#083695] border border-transparent dark:border-white/5 transition-all"
       />
       {query && (
