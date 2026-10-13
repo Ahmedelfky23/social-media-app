@@ -91,10 +91,8 @@ export function Setting() {
   function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Preview immediately in UI
     const url = URL.createObjectURL(file);
     setUserLogin((prev) => (prev ? { ...prev, photo: url } : prev));
-    // Upload to server
     const formData = new FormData();
     formData.append("photo", file);
     const token = localStorage.getItem("token") || "";

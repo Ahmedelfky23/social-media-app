@@ -88,11 +88,11 @@ export default function Profile() {
     queryKey: ["my-profile"],
     queryFn: fetchMyProfile,
     enabled: isOwnProfile,
-    staleTime: 1000 * 60 * 5, // cache for 5 minutes
+    staleTime: 1000 * 60 * 5, 
     retry: 2,
   });
 
-  // ── Fetch other user profile data (nested user profile) ───────────────
+  // ── Fetch other user profile data ) ───────────────
   const {
     data: otherProfile,
     isLoading: isProfileLoading,

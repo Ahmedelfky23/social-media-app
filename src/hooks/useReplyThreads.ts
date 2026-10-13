@@ -1,18 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CommentType } from "../types/Comment.type";
-
-/**
- * Client-side threading for reply-on-reply.
- *
- * Backend only supports ONE level:
- *   POST /posts/:postId/comments/:topLevelCommentId/replies
- * Passing a reply id as :commentId -> "Parent Comment Not Found".
- *
- * So we POST every nested reply to the ROOT top-level comment,
- * tag it with "@username", and keep the parent->children mapping
- * locally (persisted per-post in localStorage) to render infinite nesting.
- */
-
 type ThreadMap = Record<string, CommentType[]>;
 
 function readStored(postId: string): ThreadMap {

@@ -37,8 +37,6 @@ export function useCommentActions(
     queryClient.setQueryData<CommentType[]>(commentsQueryKey(postId), (old) =>
       old?.map((c) => (c._id === comment._id ? { ...c, ...changes } : c)),
     );
-    // Also patch the comment inside ANY cached nested reply list
-    // (reply-on-reply threads), so likes/edits feel instant at every depth.
     queryClient.setQueriesData<CommentType[]>(
       { queryKey: ["replies", postId] },
       (old) =>
@@ -74,8 +72,6 @@ export function useCommentActions(
 
   const refreshAfterMutation = () => {
     queryClient.invalidateQueries({ queryKey: commentsQueryKey(postId) });
-    // Invalidate ALL nested reply lists for this post so deeply
-    // nested threads (reply-on-reply-on-reply...) stay fresh.
     queryClient.invalidateQueries({ queryKey: ["replies", postId] });
     if (parentCommentId) {
       queryClient.invalidateQueries({
@@ -139,8 +135,6 @@ export function useCommentActions(
         headers: authHeader(),
       }),
     onMutate: () => {
-      // Optimistically remove from every cached reply list for this post
-      // (covers reply-on-reply at any depth) + top-level comments.
       queryClient.setQueriesData<CommentType[]>(
         { queryKey: ["replies", postId] },
         (old) =>

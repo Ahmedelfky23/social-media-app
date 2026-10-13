@@ -11,12 +11,17 @@ import {
   MessageCircle,
   UserPlus,
 } from "lucide-react";
+import { UserAvatar } from "../PostCard/PostCard";
 import type { NotificationType } from "../../types/Notification.type";
 
 const API = "https://route-posts.routemisr.com";
 
 function authHeaders() {
-  return { Authorization: `Bearer ${localStorage.getItem("token")}` };
+  const token = localStorage.getItem("token") || "";
+  return {
+    Authorization: `Bearer ${token}`,
+    token,
+  };
 }
 
 /* ------------------------------- API calls ------------------------------ */
@@ -24,15 +29,15 @@ async function getUnreadCount(): Promise<number> {
   const res = await axios.get(`${API}/notifications/unread-count`, {
     headers: authHeaders(),
   });
-  return res.data.data.unreadCount ?? 0;
+  return res.data?.data?.unreadCount ?? res.data?.unreadCount ?? 0;
 }
 
 async function getNotifications(): Promise<NotificationType[]> {
   const res = await axios.get(
-    `${API}/notifications?unread=false&page=1&limit=10`,
+    `${API}/notifications?unread=false&page=1&limit=20`,
     { headers: authHeaders() },
   );
-  return res.data.data.notifications ?? [];
+  return res.data?.data?.notifications ?? res.data?.notifications ?? [];
 }
 
 /* -------------------------------- helpers ------------------------------- */
@@ -79,43 +84,74 @@ export default function NotificationsMenu() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const hasToken = !!localStorage.getItem("token");
+  const token = localStorage.getItem("token");
+  const hasToken = Boolean(token);
 
-  /* Unread badge count (kept fresh every 30s) */
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["notifications", "unread-count"],
     queryFn: getUnreadCount,
     enabled: hasToken,
     refetchInterval: 30000,
+    staleTime: 1000 * 15,
   });
 
-  /* Notifications list (fetched when the dropdown opens) */
-  const { data: notifications = [], isLoading, isError } = useQuery({
+  const {
+    data: notifications = [],
+    isLoading,
+    isError,
+    refetch: refetchNotifications,
+  } = useQuery({
     queryKey: ["notifications", "list"],
     queryFn: getNotifications,
-    enabled: hasToken && open,
+    enabled: hasToken,
+    staleTime: 1000 * 15,
+    refetchInterval: open ? 15000 : false,
   });
+
+  useEffect(() => {
+    if (open && hasToken) {
+      refetchNotifications();
+    }
+  }, [open, hasToken, refetchNotifications]);
 
   function refreshNotifications() {
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
   }
 
-  /* Mark one notification as read */
   const markRead = useMutation({
     mutationFn: (id: string) =>
       axios.patch(`${API}/notifications/${id}/read`, null, {
         headers: authHeaders(),
       }),
-    onSuccess: refreshNotifications,
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      queryClient.setQueryData<NotificationType[]>(
+        ["notifications", "list"],
+        (old = []) =>
+          old.map((item) => (item._id === id ? { ...item, isRead: true } : item))
+      );
+      queryClient.setQueryData<number>(
+        ["notifications", "unread-count"],
+        (old = 0) => Math.max(0, old - 1)
+      );
+    },
+    onSettled: refreshNotifications,
   });
 
-  /* Mark all notifications as read */
   const markAllRead = useMutation({
     mutationFn: () =>
       axios.patch(`${API}/notifications/read-all`, null, {
         headers: authHeaders(),
       }),
-    onSuccess: refreshNotifications,
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      queryClient.setQueryData<NotificationType[]>(
+        ["notifications", "list"],
+        (old = []) => old.map((item) => ({ ...item, isRead: true }))
+      );
+      queryClient.setQueryData<number>(["notifications", "unread-count"], 0);
+    },
+    onSettled: refreshNotifications,
   });
 
   useEffect(() => {
@@ -137,9 +173,40 @@ export default function NotificationsMenu() {
 
   function handleOpenNotification(n: NotificationType) {
     if (!n.isRead) markRead.mutate(n._id);
-    if (n.entityType === "post" && n.entityId) {
-      setOpen(false);
+    setOpen(false);
+
+    const typeStr = (n.type || "").toLowerCase();
+    const entityTypeStr = (n.entityType || "").toLowerCase();
+
+    const isFollow =
+      typeStr.includes("follow") ||
+      entityTypeStr === "user" ||
+      entityTypeStr === "follow";
+
+    if (isFollow) {
+      const targetUserId =
+        n.actor?._id || (entityTypeStr === "user" ? n.entityId : null);
+      if (targetUserId) {
+        navigate(`/profile/${targetUserId}`);
+        return;
+      }
+    }
+
+    if (entityTypeStr === "post" && n.entityId) {
       navigate(`/post/${n.entityId}`);
+      return;
+    }
+
+    if (n.actor?._id) {
+      navigate(`/profile/${n.actor._id}`);
+    }
+  }
+
+  function handleActorClick(e: React.MouseEvent, actorId?: string) {
+    e.stopPropagation();
+    if (actorId) {
+      setOpen(false);
+      navigate(`/profile/${actorId}`);
     }
   }
 
@@ -210,11 +277,15 @@ export default function NotificationsMenu() {
                     !n.isRead ? "bg-[#083695]/3 dark:bg-blue-400/6" : ""
                   }`}
                 >
-                  <div className="relative shrink-0">
-                    <img
-                      src={n.actor.photo}
-                      alt={n.actor.name}
-                      className="h-10 w-10 rounded-full object-cover"
+                  <div
+                    className="relative shrink-0"
+                    onClick={(e) => handleActorClick(e, n.actor?._id)}
+                    title={`View ${n.actor?.name || "user"}'s profile`}
+                  >
+                    <UserAvatar
+                      photo={n.actor?.photo}
+                      name={n.actor?.name}
+                      className="h-10 w-10 ring-2 ring-gray-100 dark:ring-white/10 hover:ring-[#083695]/40 transition-all"
                     />
                     <span className="absolute -bottom-0.5 -right-0.5">
                       <TypeIcon type={n.type} />
@@ -223,8 +294,12 @@ export default function NotificationsMenu() {
 
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-700 dark:text-gray-200 leading-snug">
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {n.actor.name}
+                      <span
+                        onClick={(e) => handleActorClick(e, n.actor?._id)}
+                        className="font-semibold text-gray-900 dark:text-white hover:underline cursor-pointer"
+                        title={`View ${n.actor?.name || "user"}'s profile`}
+                      >
+                        {n.actor?.name}
                       </span>{" "}
                       {notificationText(n.type)}
                     </p>
