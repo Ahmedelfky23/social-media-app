@@ -16,7 +16,7 @@ export interface Conversation {
   name: string;
   username: string;
   photo?: string;
-  online: boolean;
+  online?: boolean;
   lastActive?: string;
   lastMessage: string;
   lastMessageTime: string;
@@ -26,7 +26,11 @@ export interface Conversation {
   muted?: boolean;
   isGroup?: boolean;
   members?: number;
-  messages: ChatMessage[];
+  messages?: ChatMessage[];
+  memberIds?: string[];
+  otherUserId?: string;
+  lastSenderIsMe?: boolean;
+  lastMessageSeen?: boolean;
 }
 
 export const conversationsMock: Conversation[] = [

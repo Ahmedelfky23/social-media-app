@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserPlus, UserX, Check, RotateCw, Loader2, Sparkles } from "lucide-react";
+import { UserPlus, UserX, Check, RotateCw, Loader2, Sparkles, MessageCircle } from "lucide-react";
 import { UserAvatar } from "#components/PostCard/PostCard";
 import { toast } from "#components/ui/toast";
 import { authHeader } from "#hooks/usePostActions";
@@ -31,6 +31,7 @@ async function fetchSuggestions(limit = 8): Promise<SuggestionUser[]> {
 }
 
 export default function FollowSuggestions() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
   const [hoveredUnfollow, setHoveredUnfollow] = useState<string | null>(null);
@@ -195,41 +196,67 @@ export default function FollowSuggestions() {
                   </div>
                 </Link>
 
-                {/* Follow Button */}
-                <button
-                  onClick={() => followMutation.mutate(user._id)}
-                  disabled={isPending}
-                  onMouseEnter={() => setHoveredUnfollow(user._id)}
-                  onMouseLeave={() => setHoveredUnfollow(null)}
-                  className={`shrink-0 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 cursor-pointer shadow-xs ${
-                    isFollowing
-                      ? hoveredUnfollow === user._id
-                        ? "bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/20"
-                        : "bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-white/10"
-                      : "bg-[#083695] hover:bg-[#092f70] dark:bg-blue-600 dark:hover:bg-blue-500 text-white hover:scale-105 active:scale-95"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {isPending ? (
-                    <Loader2 size={13} className="animate-spin inline" />
-                  ) : isFollowing ? (
-                    hoveredUnfollow === user._id ? (
-                      <span className="inline-flex items-center gap-1">
-                        <UserX size={12} />
-                        Unfollow
-                      </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Chat Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      navigate("/chats", {
+                        state: {
+                          targetUser: {
+                            _id: user._id,
+                            name: user.name,
+                            username: user.username,
+                            photo: user.photo,
+                          },
+                        },
+                      });
+                    }}
+                    className="h-8 w-8 rounded-full flex items-center justify-center text-[#083695] dark:text-blue-400 bg-[#083695]/10 hover:bg-[#083695] hover:text-white dark:bg-white/10 dark:hover:bg-blue-600 dark:hover:text-white transition-all cursor-pointer shadow-xs"
+                    title={`Message ${user.name}`}
+                    aria-label={`Message ${user.name}`}
+                  >
+                    <MessageCircle size={14} />
+                  </button>
+
+                  {/* Follow Button */}
+                  <button
+                    onClick={() => followMutation.mutate(user._id)}
+                    disabled={isPending}
+                    onMouseEnter={() => setHoveredUnfollow(user._id)}
+                    onMouseLeave={() => setHoveredUnfollow(null)}
+                    className={`shrink-0 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 cursor-pointer shadow-xs ${
+                      isFollowing
+                        ? hoveredUnfollow === user._id
+                          ? "bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/20"
+                          : "bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-white/10"
+                        : "bg-[#083695] hover:bg-[#092f70] dark:bg-blue-600 dark:hover:bg-blue-500 text-white hover:scale-105 active:scale-95"
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {isPending ? (
+                      <Loader2 size={13} className="animate-spin inline" />
+                    ) : isFollowing ? (
+                      hoveredUnfollow === user._id ? (
+                        <span className="inline-flex items-center gap-1">
+                          <UserX size={12} />
+                          Unfollow
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <Check size={12} />
+                          Following
+                        </span>
+                      )
                     ) : (
                       <span className="inline-flex items-center gap-1">
-                        <Check size={12} />
-                        Following
+                        <UserPlus size={12} />
+                        Follow
                       </span>
-                    )
-                  ) : (
-                    <span className="inline-flex items-center gap-1">
-                      <UserPlus size={12} />
-                      Follow
-                    </span>
-                  )}
-                </button>
+                    )}
+                  </button>
+                </div>
               </div>
             );
           })

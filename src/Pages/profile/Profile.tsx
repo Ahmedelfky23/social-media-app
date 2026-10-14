@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -94,6 +94,7 @@ async function getUserPosts(userId?: string): Promise<PostType[]> {
 
 export default function Profile() {
   const { userId } = useParams<{ userId: string }>();
+  const navigate = useNavigate();
   const { userLogin, setUserLogin } = useContext(AuthContext);
   const [copied, setCopied] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
@@ -408,6 +409,26 @@ export default function Profile() {
                           });
                         }}
                       />
+                      <button
+                        onClick={() =>
+                          navigate("/chats", {
+                            state: {
+                              targetUser: {
+                                _id: targetUserId,
+                                name: profile.name,
+                                username: profile.username,
+                                photo: profile.photo,
+                                email: profile.email,
+                              },
+                            },
+                          })
+                        }
+                        className="flex items-center gap-1.5 sm:gap-2 rounded-full bg-[#083695] hover:bg-[#092f70] dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 min-h-10 transition-all hover:scale-105 active:scale-95 shadow-sm cursor-pointer"
+                        title={`Message ${profile.name || "user"}`}
+                      >
+                        <MessageCircle size={15} />
+                        Message
+                      </button>
                       <Link
                         to="/home"
                         className="flex items-center gap-2 rounded-full border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200 hover:text-[#083695] hover:border-[#083695]/40 hover:bg-[#083695]/5 dark:hover:bg-white/5 dark:hover:text-white text-xs sm:text-sm font-medium px-4 sm:px-5 py-2 sm:py-2.5 min-h-10 transition-all hover:-translate-y-0.5 active:translate-y-0"

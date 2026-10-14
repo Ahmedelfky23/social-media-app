@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import axios from "axios";
+import { signOut } from "firebase/auth";
+import { auth } from "../lib/firebase";
+import { ensureFirebaseAuth, registerChatUser } from "../services/chatService";
 
 export interface User {
   _id?: string;
@@ -65,8 +68,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (userLogin) {
       localStorage.setItem("user", JSON.stringify(userLogin));
+      // Automatically register user in Firebase for real-time chat
+      if (userLogin._id) {
+        void ensureFirebaseAuth(userLogin)
+          .then((fbUser) => {
+            return registerChatUser(userLogin._id!, fbUser.uid, {
+              name: userLogin.name,
+              username: userLogin.username,
+              photo: userLogin.photo,
+              email: userLogin.email,
+            });
+          })
+          .catch(() => {});
+      }
     } else {
       localStorage.removeItem("user");
+      // Sign out from Firebase when logged out
+      if (auth.currentUser) {
+        void signOut(auth).catch(() => {});
+      }
     }
   }, [userLogin]);
 

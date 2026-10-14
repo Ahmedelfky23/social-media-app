@@ -15,7 +15,7 @@ const POOL_URL = "https://route-posts.routemisr.com/users/suggestions";
 const POSTS_URL = "https://route-posts.routemisr.com/posts";
 const USER_CACHE_KEY = "app_known_users";
 
-async function fetchUserPool(): Promise<ExtendedSearchUser[]> {
+export async function fetchUserPool(): Promise<ExtendedSearchUser[]> {
   const token = localStorage.getItem("token");
   if (!token) return [];
 

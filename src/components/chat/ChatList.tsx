@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Pin, VolumeX } from "lucide-react";
+import { Check, CheckCheck, Pin, VolumeX, X } from "lucide-react";
 import { UserAvatar } from "#components/PostCard/PostCard";
 import type { Conversation } from "./chatMock";
 import { cn } from "cn";
@@ -7,15 +7,34 @@ interface Props {
   conversations: Conversation[];
   activeId: string;
   onSelect: (id: string) => void;
+  onDelete?: (id: string) => void;
   search: string;
 }
 
-function Row({ c, active, onSelect }: { c: Conversation; active: boolean; onSelect: () => void }) {
+function Row({
+  c,
+  active,
+  onSelect,
+  onDelete,
+}: {
+  c: Conversation;
+  active: boolean;
+  onSelect: () => void;
+  onDelete?: () => void;
+}) {
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       className={cn(
-        "w-full flex items-center gap-3 px-3 py-3 text-left cursor-pointer group relative transition-colors",
+        "w-full flex items-center gap-3 px-3 py-3 text-left cursor-pointer group relative transition-colors select-none",
         active ? "bg-[#083695]/8 dark:bg-white/8" : "hover:bg-[#083695]/4 dark:hover:bg-white/4",
       )}
     >
@@ -51,22 +70,41 @@ function Row({ c, active, onSelect }: { c: Conversation; active: boolean; onSele
           <p className={cn("text-xs truncate flex-1", c.typing ? "text-[#083695] dark:text-blue-400 font-medium" : c.unread > 0 ? "text-gray-700 dark:text-gray-200 font-medium" : "text-gray-500 dark:text-gray-400")}>
             {c.typing ? "Typing..." : c.lastMessage}
           </p>
-          {c.unread > 0 ? (
-            <span className="shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-[#083695] dark:bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center">
-              {c.unread}
-            </span>
-          ) : c.lastMessage.startsWith("You:") ? (
-            <Check size={15} className="shrink-0 text-gray-400" />
-          ) : c.lastMessage.startsWith("Omar:") ? (
-            <CheckCheck size={15} className="shrink-0 text-sky-500" />
-          ) : null}
+          <div className="flex items-center gap-1 shrink-0">
+            {c.unread > 0 ? (
+              <span className="shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-[#083695] dark:bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center">
+                {c.unread}
+              </span>
+            ) : c.lastSenderIsMe ? (
+              c.lastMessageSeen ? (
+                <CheckCheck size={14} className="shrink-0 text-sky-500" />
+              ) : (
+                <Check size={14} className="shrink-0 text-gray-400" />
+              )
+            ) : null}
+
+            {onDelete && active && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="p-1 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/15 transition-all cursor-pointer ml-1"
+                aria-label="Delete and close chat"
+                title="Delete and close chat"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
-export function ChatList({ conversations, activeId, onSelect, search }: Props) {
+export function ChatList({ conversations, activeId, onSelect, onDelete, search }: Props) {
   const q = search.trim().toLowerCase();
   const filtered = q
     ? conversations.filter((c) => c.name.toLowerCase().includes(q) || c.lastMessage.toLowerCase().includes(q))
@@ -89,13 +127,29 @@ export function ChatList({ conversations, activeId, onSelect, search }: Props) {
       {pinned.length > 0 && (
         <>
           <p className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Pinned</p>
-          {pinned.map((c) => <Row key={c.id} c={c} active={c.id === activeId} onSelect={() => onSelect(c.id)} />)}
+          {pinned.map((c) => (
+            <Row
+              key={c.id}
+              c={c}
+              active={c.id === activeId}
+              onSelect={() => onSelect(c.id)}
+              onDelete={onDelete ? () => onDelete(c.id) : undefined}
+            />
+          ))}
         </>
       )}
       {others.length > 0 && pinned.length > 0 && (
         <p className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">All messages</p>
       )}
-      {others.map((c) => <Row key={c.id} c={c} active={c.id === activeId} onSelect={() => onSelect(c.id)} />)}
+      {others.map((c) => (
+        <Row
+          key={c.id}
+          c={c}
+          active={c.id === activeId}
+          onSelect={() => onSelect(c.id)}
+          onDelete={onDelete ? () => onDelete(c.id) : undefined}
+        />
+      ))}
     </div>
   );
 }

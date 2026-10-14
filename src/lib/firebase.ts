@@ -1,10 +1,9 @@
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAnalytics, isSupported } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDrCCCxEzAOLhV60jF6wm0tyiqhpf06ABo",
   authDomain: "route-social-media.firebaseapp.com",
@@ -15,7 +14,18 @@ const firebaseConfig = {
   measurementId: "G-C3JD8HXNQE"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const analytics = getAnalytics(app);
+// Initialize Firebase safely (avoid duplicate app init during HMR)
+export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+// Initialize Firestore & Auth
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+
+// Initialize Analytics conditionally
+if (typeof window !== "undefined") {
+  isSupported().then((supported) => {
+    if (supported) {
+      getAnalytics(app);
+    }
+  });
+}
