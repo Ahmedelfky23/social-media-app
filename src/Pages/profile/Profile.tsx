@@ -48,9 +48,32 @@ async function getUserProfile(userId: string): Promise<OtherUserProfile> {
       },
     },
   );
+  const data = response.data;
+  const user = data?.data?.user ?? data?.user ?? data?.data ?? null;
+
+  let isFollowing: boolean | undefined =
+    data?.data?.isFollowing ??
+    data?.isFollowing ??
+    user?.isFollowing;
+
+  if (typeof isFollowing !== "boolean" && user?.followers && Array.isArray(user.followers)) {
+    try {
+      const rawUser = localStorage.getItem("user");
+      const myId = rawUser ? JSON.parse(rawUser)?._id : null;
+      if (myId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        isFollowing = user.followers.some((f: any) =>
+          typeof f === "string" ? f === myId : f?._id === myId,
+        );
+      }
+    } catch {
+      //
+    }
+  }
+
   return {
-    user: response.data?.data?.user ?? null,
-    isFollowing: response.data?.data?.isFollowing ?? false,
+    user,
+    isFollowing: Boolean(isFollowing),
   };
 }
 
@@ -105,24 +128,37 @@ export default function Profile() {
   });
 
   const otherUserProfile = otherProfile?.user ?? null;
-  const isFollowing = otherProfile?.isFollowing ?? false;
+  const targetFollowingList =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((otherUserProfile as any)?.following as Array<{ _id?: string } | string> | undefined) || [];
+  const targetFollowersList =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((otherUserProfile as any)?.followers as Array<{ _id?: string } | string> | undefined) || [];
+  const myFollowingList =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((userLogin as any)?.following as Array<{ _id?: string } | string> | undefined) || [];
+
+  const myId = userLogin?._id;
+  const theyFollowMe = Boolean(
+    myId &&
+      targetFollowingList.some((u) => (typeof u === "string" ? u === myId : u._id === myId)),
+  );
+
+  const serverIsFollowing = Boolean(
+    otherProfile?.isFollowing ||
+      (myId &&
+        targetFollowersList.some((u) => (typeof u === "string" ? u === myId : u._id === myId))) ||
+      (targetUserId &&
+        myFollowingList.some((u) => (typeof u === "string" ? u === targetUserId : u._id === targetUserId))),
+  );
 
   const [liveIsFollowing, setLiveIsFollowing] = useState<boolean | null>(null);
-  const currentIsFollowing = liveIsFollowing !== null ? liveIsFollowing : isFollowing;
+  const currentIsFollowing = liveIsFollowing !== null ? liveIsFollowing : serverIsFollowing;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLiveIsFollowing(null);
   }, [userId]);
-
-  const myId = userLogin?._id;
-  const targetFollowingList =
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ((otherUserProfile as any)?.following as Array<{ _id?: string } | string> | undefined) || [];
-  const theyFollowMe = Boolean(
-    myId &&
-      targetFollowingList.some((u) => (typeof u === "string" ? u === myId : u._id === myId)),
-  );
 
   useEffect(() => {
     if (isOwnProfile && myProfileData && myProfileData._id) {
@@ -357,7 +393,19 @@ export default function Profile() {
                         followBackText={theyFollowMe ? "Follow back" : "Follow"}
                         onChange={(following, count) => {
                           setLiveIsFollowing(following);
-                          setFollowersOverride({ id: targetUserId as string, count });
+                          setFollowersOverride((prev) => {
+                            if (typeof count === "number") {
+                              return { id: targetUserId as string, count };
+                            }
+                            const baseCount =
+                              prev && prev.id === targetUserId
+                                ? prev.count
+                                : (profile.followersCount ?? 0);
+                            const newCount = following
+                              ? baseCount + 1
+                              : Math.max(0, baseCount - 1);
+                            return { id: targetUserId as string, count: newCount };
+                          });
                         }}
                       />
                       <Link
@@ -450,7 +498,7 @@ export default function Profile() {
 
                 {/* meta info */}
                 <div className="flex flex-wrap gap-x-4 sm:gap-x-5 gap-y-2 pt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {profile.email && (
+                  {isOwnProfile && profile.email && (
                     <span className="flex items-center gap-1.5 min-w-0 max-w-full">
                       <Mail size={14} className="text-[#083695] dark:text-blue-400 shrink-0" />
                       <span className="truncate">{profile.email}</span>

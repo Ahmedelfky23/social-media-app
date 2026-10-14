@@ -24,6 +24,28 @@ function authHeaders() {
   };
 }
 
+const NOTIF_HISTORY_KEY = "app_notifications_history";
+
+function getCachedHistory(): NotificationType[] {
+  try {
+    const raw = localStorage.getItem(NOTIF_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(list: NotificationType[]) {
+  try {
+    // الاحتفاظ بأحدث 20 إشعار لضمان بقاء آخر الإشعارات السابقة ظاهرة دائماً
+    localStorage.setItem(NOTIF_HISTORY_KEY, JSON.stringify(list.slice(0, 20)));
+  } catch {
+    //
+  }
+}
+
 /* ------------------------------- API calls ------------------------------ */
 async function getUnreadCount(): Promise<number> {
   const res = await axios.get(`${API}/notifications/unread-count`, {
@@ -33,11 +55,36 @@ async function getUnreadCount(): Promise<number> {
 }
 
 async function getNotifications(): Promise<NotificationType[]> {
-  const res = await axios.get(
-    `${API}/notifications?unread=false&page=1&limit=20`,
-    { headers: authHeaders() },
-  );
-  return res.data?.data?.notifications ?? res.data?.notifications ?? [];
+  const history = getCachedHistory();
+  try {
+    const res = await axios.get(
+      `${API}/notifications?unread=false&page=1&limit=20`,
+      { headers: authHeaders() },
+    );
+    const fresh: NotificationType[] =
+      res.data?.data?.notifications ?? res.data?.notifications ?? [];
+
+    const map = new Map<string, NotificationType>();
+
+    for (const n of fresh) {
+      if (n?._id) map.set(n._id, n);
+    }
+
+    for (const h of history) {
+      if (h?._id && !map.has(h._id)) {
+        map.set(h._id, h);
+      }
+    }
+
+    const merged = Array.from(map.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+
+    saveHistory(merged);
+    return merged;
+  } catch {
+    return history;
+  }
 }
 
 /* -------------------------------- helpers ------------------------------- */
@@ -103,6 +150,7 @@ export default function NotificationsMenu() {
   } = useQuery({
     queryKey: ["notifications", "list"],
     queryFn: getNotifications,
+    initialData: getCachedHistory,
     enabled: hasToken,
     staleTime: 1000 * 15,
     refetchInterval: open ? 15000 : false,
@@ -134,6 +182,11 @@ export default function NotificationsMenu() {
         ["notifications", "unread-count"],
         (old = 0) => Math.max(0, old - 1)
       );
+
+      const history = getCachedHistory();
+      saveHistory(
+        history.map((item) => (item._id === id ? { ...item, isRead: true } : item))
+      );
     },
     onSettled: refreshNotifications,
   });
@@ -150,6 +203,9 @@ export default function NotificationsMenu() {
         (old = []) => old.map((item) => ({ ...item, isRead: true }))
       );
       queryClient.setQueryData<number>(["notifications", "unread-count"], 0);
+
+      const history = getCachedHistory();
+      saveHistory(history.map((item) => ({ ...item, isRead: true })));
     },
     onSettled: refreshNotifications,
   });
@@ -172,7 +228,13 @@ export default function NotificationsMenu() {
   }, []);
 
   function handleOpenNotification(n: NotificationType) {
-    if (!n.isRead) markRead.mutate(n._id);
+    if (!n.isRead) {
+      markRead.mutate(n._id);
+    }
+    const history = getCachedHistory();
+    saveHistory(
+      history.map((item) => (item._id === n._id ? { ...item, isRead: true } : item))
+    );
     setOpen(false);
 
     const typeStr = (n.type || "").toLowerCase();

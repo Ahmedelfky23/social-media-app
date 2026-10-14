@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserPlus, Check, RotateCw, Loader2, Sparkles } from "lucide-react";
+import { UserPlus, UserX, Check, RotateCw, Loader2, Sparkles } from "lucide-react";
 import { UserAvatar } from "#components/PostCard/PostCard";
 import { toast } from "#components/ui/toast";
 import { authHeader } from "#hooks/usePostActions";
@@ -60,16 +60,31 @@ export default function FollowSuggestions() {
           },
         },
       );
-      return { userId, data: res.data?.data };
+      return { userId, data: res.data?.data ?? res.data };
     },
     onMutate: (userId) => {
+      const wasFollowing = Boolean(followingMap[userId]);
       setFollowingMap((prev) => ({
         ...prev,
-        [userId]: !prev[userId],
+        [userId]: !wasFollowing,
       }));
+      return { wasFollowing };
     },
-    onSuccess: ({ userId, data }) => {
-      const isNowFollowing = data?.following ?? true;
+    onSuccess: ({ userId, data }, _vars, context) => {
+      let isNowFollowing: boolean;
+      if (typeof data?.following === "boolean") {
+        isNowFollowing = data.following;
+      } else if (typeof data?.isFollowing === "boolean") {
+        isNowFollowing = data.isFollowing;
+      } else if (typeof data?.message === "string") {
+        const msg = data.message.toLowerCase();
+        if (msg.includes("unfollow")) isNowFollowing = false;
+        else if (msg.includes("follow")) isNowFollowing = true;
+        else isNowFollowing = !context?.wasFollowing;
+      } else {
+        isNowFollowing = !context?.wasFollowing;
+      }
+
       setFollowingMap((prev) => ({
         ...prev,
         [userId]: isNowFollowing,
@@ -83,11 +98,12 @@ export default function FollowSuggestions() {
       });
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       queryClient.invalidateQueries({ queryKey: ["user-profile", userId] });
+      queryClient.invalidateQueries({ queryKey: ["my-profile"] });
     },
-    onError: (_err, userId) => {
+    onError: (_err, userId, context) => {
       setFollowingMap((prev) => ({
         ...prev,
-        [userId]: !prev[userId],
+        [userId]: Boolean(context?.wasFollowing),
       }));
       toast.add({
         title: "Action failed",
@@ -197,7 +213,10 @@ export default function FollowSuggestions() {
                     <Loader2 size={13} className="animate-spin inline" />
                   ) : isFollowing ? (
                     hoveredUnfollow === user._id ? (
-                      "Unfollow"
+                      <span className="inline-flex items-center gap-1">
+                        <UserX size={12} />
+                        Unfollow
+                      </span>
                     ) : (
                       <span className="inline-flex items-center gap-1">
                         <Check size={12} />

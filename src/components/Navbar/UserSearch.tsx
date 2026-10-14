@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Search, SearchX, TrendingUp, X, Hash } from "lucide-react";
+import { Loader2, Search, SearchX, TrendingUp, X } from "lucide-react";
 import { UserAvatar } from "#components/PostCard/PostCard";
 import { authHeader } from "#hooks/usePostActions";
 import type { SuggestionUser } from "#components/FollowSuggestions/FollowSuggestions";
@@ -21,14 +21,40 @@ async function fetchUserPool(): Promise<ExtendedSearchUser[]> {
 
   const userMap = new Map<string, ExtendedSearchUser>();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const addUser = (raw: any) => {
+    if (!raw || typeof raw !== "object") return;
+    const id = raw._id || raw.id;
+    if (!id || typeof id !== "string") return;
+
+    const existing = userMap.get(id);
+    const name = raw.name || existing?.name || "";
+    const username =
+      raw.username ||
+      existing?.username ||
+      (name ? name.toLowerCase().replace(/\s+/g, "") : "");
+    const photo = raw.photo || existing?.photo;
+    const followersCount =
+      typeof raw.followersCount === "number"
+        ? raw.followersCount
+        : existing?.followersCount;
+
+    userMap.set(id, {
+      _id: id,
+      name,
+      username,
+      photo,
+      followersCount,
+    });
+  };
+
+  // 1. المسترجع من الكاش السابق
   try {
     const cached = localStorage.getItem(USER_CACHE_KEY);
     if (cached) {
       const list: ExtendedSearchUser[] = JSON.parse(cached);
       if (Array.isArray(list)) {
-        for (const u of list) {
-          if (u?._id) userMap.set(u._id, u);
-        }
+        for (const u of list) addUser(u);
       }
     }
   } catch {
@@ -37,82 +63,55 @@ async function fetchUserPool(): Promise<ExtendedSearchUser[]> {
 
   try {
     const raw = localStorage.getItem("user");
-    if (raw) {
-      const u = JSON.parse(raw);
-      if (u?._id) {
-        userMap.set(u._id, {
-          _id: u._id,
-          name: u.name || "",
-          username: u.username || u.name?.toLowerCase().replace(/\s+/g, "") || "",
-          email: u.email,
-          photo: u.photo,
-        });
-      }
-    }
-  } catch {
-    // 
-  }
-
-  try {
-    const res = await axios.get(`${POOL_URL}?limit=100`, {
-      headers: { ...authHeader(), token },
-    });
-    const suggestions: ExtendedSearchUser[] = res.data?.data?.suggestions ?? [];
-    for (const u of suggestions) {
-      if (u?._id) {
-        userMap.set(u._id, {
-          ...u,
-          username: u.username || u.name?.toLowerCase().replace(/\s+/g, "") || "",
-        });
-      }
-    }
+    if (raw) addUser(JSON.parse(raw));
   } catch {
     //
   }
 
   try {
-    const resPosts = await axios.get(`${POSTS_URL}?limit=100`, {
-      headers: { ...authHeader(), token },
-    });
+    const headers = { ...authHeader(), token };
+
+    const [suggRes, postsP1, postsP2, postsP3] = await Promise.allSettled([
+      axios.get(`${POOL_URL}?limit=150`, { headers }),
+      axios.get(`${POSTS_URL}?limit=50&page=1`, { headers }),
+      axios.get(`${POSTS_URL}?limit=50&page=2`, { headers }),
+      axios.get(`${POSTS_URL}?limit=50&page=3`, { headers }),
+    ]);
+
+    if (suggRes.status === "fulfilled") {
+      const suggestions = suggRes.value.data?.data?.suggestions ?? [];
+      for (const u of suggestions) addUser(u);
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const posts: any[] = resPosts.data?.data?.posts ?? resPosts.data?.posts ?? [];
-    for (const p of posts) {
-      if (p.user?._id) {
-        const u = p.user;
-        if (!userMap.has(u._id)) {
-          userMap.set(u._id, {
-            _id: u._id,
-            name: u.name || "",
-            username: u.username || u.name?.toLowerCase().replace(/\s+/g, "") || "",
-            email: u.email,
-            photo: u.photo,
-          });
-        }
-      }
-      if (Array.isArray(p.comments)) {
-        for (const c of p.comments) {
-          const cu = c.commentCreator || c.user;
-          if (cu?._id && !userMap.has(cu._id)) {
-            userMap.set(cu._id, {
-              _id: cu._id,
-              name: cu.name || "",
-              username: cu.username || cu.name?.toLowerCase().replace(/\s+/g, "") || "",
-              photo: cu.photo,
-            });
+    const processPosts = (res: PromiseSettledResult<any>) => {
+      if (res.status !== "fulfilled") return;
+      const posts = res.value.data?.data?.posts ?? res.value.data?.posts ?? [];
+      for (const p of posts) {
+        if (p.user) addUser(p.user);
+        if (p.sharedPost?.user) addUser(p.sharedPost.user);
+        if (Array.isArray(p.comments)) {
+          for (const c of p.comments) {
+            if (c.commentCreator) addUser(c.commentCreator);
+            if (c.user) addUser(c.user);
           }
         }
       }
-    }
+    };
+
+    processPosts(postsP1);
+    processPosts(postsP2);
+    processPosts(postsP3);
   } catch {
-    // 
+    //
   }
 
   const allUsers = Array.from(userMap.values());
 
   try {
-    localStorage.setItem(USER_CACHE_KEY, JSON.stringify(allUsers.slice(0, 300)));
+    localStorage.setItem(USER_CACHE_KEY, JSON.stringify(allUsers.slice(0, 500)));
   } catch {
-    // 
+    //
   }
 
   return allUsers;
@@ -149,7 +148,7 @@ export default function UserSearch() {
     const t = setTimeout(() => {
       setDebounced(query);
       setActiveIndex(0);
-    }, 200);
+    }, 180);
     return () => clearTimeout(t);
   }, [query]);
 
@@ -174,52 +173,53 @@ export default function UserSearch() {
 
   const q = debounced.trim().toLowerCase();
   const cleanQ = q.startsWith("@") ? q.slice(1) : q;
-  const isObjectId = /^[0-9a-fA-F]{24}$/.test(cleanQ);
-
-  const { data: directUser, isLoading: isDirectUserLoading } = useQuery({
-    queryKey: ["direct-user-by-id", cleanQ],
-    queryFn: async () => {
-      const token = localStorage.getItem("token");
-      if (!token || !isObjectId) return null;
-      try {
-        const res = await axios.get(
-          `https://route-posts.routemisr.com/users/${cleanQ}/profile`,
-          { headers: { ...authHeader(), token } },
-        );
-        const u = res.data?.data?.user;
-        if (!u?._id) return null;
-        return {
-          _id: u._id,
-          name: u.name || "",
-          username: u.username || u.name?.toLowerCase().replace(/\s+/g, "") || "",
-          email: u.email,
-          photo: u.photo,
-        } as ExtendedSearchUser;
-      } catch {
-        return null;
-      }
-    },
-    enabled: isObjectId && hasToken,
-    staleTime: 1000 * 60 * 10,
-  });
 
   const feedUsers = useMemo(() => {
-    const cachedPostsData = queryClient.getQueriesData({ queryKey: ["posts"] });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cachedQueries = queryClient.getQueriesData<any>({});
     const users: ExtendedSearchUser[] = [];
-    for (const [, data] of cachedPostsData) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pages = (data as any)?.pages;
+    const seen = new Set<string>();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const checkAndAdd = (u: any) => {
+      if (!u || typeof u !== "object") return;
+      const id = u._id || u.id;
+      if (!id || typeof id !== "string" || seen.has(id)) return;
+      seen.add(id);
+      users.push({
+        _id: id,
+        name: u.name || "",
+        username: u.username || (u.name ? u.name.toLowerCase().replace(/\s+/g, "") : ""),
+        photo: u.photo,
+        followersCount: typeof u.followersCount === "number" ? u.followersCount : undefined,
+      });
+    };
+
+    for (const [, data] of cachedQueries) {
+      if (!data) continue;
+      // صفحة بروفايل أو بيانات مستخدم
+      if (data.user) checkAndAdd(data.user);
+      if (data.data?.user) checkAndAdd(data.data.user);
+      if (Array.isArray(data.suggestions)) {
+        for (const s of data.suggestions) checkAndAdd(s);
+      }
+      if (Array.isArray(data.data?.suggestions)) {
+        for (const s of data.data.suggestions) checkAndAdd(s);
+      }
+      // صفحات التغذية
+      const pages = data.pages;
       if (Array.isArray(pages)) {
         for (const page of pages) {
-          if (Array.isArray(page?.posts)) {
-            for (const p of page.posts) {
-              if (p?.user?._id) {
-                users.push({
-                  _id: p.user._id,
-                  name: p.user.name || "",
-                  username: p.user.username || p.user.name?.toLowerCase().replace(/\s+/g, "") || "",
-                  photo: p.user.photo,
-                });
+          const posts = page?.posts ?? page?.data?.posts ?? [];
+          if (Array.isArray(posts)) {
+            for (const p of posts) {
+              if (p?.user) checkAndAdd(p.user);
+              if (p?.sharedPost?.user) checkAndAdd(p.sharedPost.user);
+              if (Array.isArray(p?.comments)) {
+                for (const c of p.comments) {
+                  if (c?.commentCreator) checkAndAdd(c.commentCreator);
+                  if (c?.user) checkAndAdd(c.user);
+                }
               }
             }
           }
@@ -244,29 +244,51 @@ export default function UserSearch() {
   const results = useMemo(() => {
     if (!cleanQ) return [];
 
-    const filtered = combinedPool.filter((u) => {
-      const name = u.name?.toLowerCase() || "";
-      const username = (u.username || u.name?.toLowerCase().replace(/\s+/g, "") || "").toLowerCase();
-      const id = u._id?.toLowerCase() || "";
-      const email = u.email?.toLowerCase() || "";
+    const tokens = cleanQ.split(/\s+/).filter(Boolean);
 
-      return (
-        name.includes(cleanQ) ||
-        username.includes(cleanQ) ||
-        id.includes(cleanQ) ||
-        email.includes(cleanQ)
-      );
-    });
+    const scored: Array<{ user: ExtendedSearchUser; score: number }> = [];
 
-    if (directUser && directUser._id && !filtered.some((u) => u._id === directUser._id)) {
-      return [directUser, ...filtered].slice(0, 30);
+    for (const u of combinedPool) {
+      const name = (u.name || "").toLowerCase();
+      const username = (
+        u.username ||
+        u.name?.toLowerCase().replace(/\s+/g, "") ||
+        ""
+      ).toLowerCase();
+
+      // البحث فقط بالاسم والـ username للحفاظ على الـ privacy
+      let match = false;
+      let score = 0;
+
+      if (name === cleanQ || username === cleanQ) {
+        match = true;
+        score = 100;
+      } else if (username.startsWith(cleanQ) || name.startsWith(cleanQ)) {
+        match = true;
+        score = 80;
+      } else if (name.split(/\s+/).some((part) => part.startsWith(cleanQ))) {
+        match = true;
+        score = 60;
+      } else if (name.includes(cleanQ) || username.includes(cleanQ)) {
+        match = true;
+        score = 40;
+      } else if (tokens.length > 1 && tokens.every((t) => name.includes(t) || username.includes(t))) {
+        match = true;
+        score = 30;
+      }
+
+      if (match) {
+        const boost = Math.min(20, (u.followersCount ?? 0) / 10);
+        scored.push({ user: u, score: score + boost });
+      }
     }
 
-    return filtered.slice(0, 30);
-  }, [combinedPool, cleanQ, directUser]);
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map((s) => s.user).slice(0, 50);
+  }, [combinedPool, cleanQ]);
 
-  const suggested = useMemo(() => combinedPool.slice(0, 6), [combinedPool]);
-  const loading = isLoading || isFetching || (isObjectId && isDirectUserLoading);
+  const suggested = useMemo(() => combinedPool.slice(0, 8), [combinedPool]);
+  const loading = isLoading || isFetching;
   const showDropdown = open && (cleanQ.length > 0 || combinedPool.length > 0);
   const listToShow = cleanQ ? results : suggested;
 
@@ -355,19 +377,11 @@ export default function UserSearch() {
                 </span>
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">No users found</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Try searching by name, username (@handle)
+                  Try searching by name or @username
                 </p>
               </div>
             ) : (
               listToShow.map((u, idx) => {
-                const isIdMatch = Boolean(cleanQ && u._id?.toLowerCase().includes(cleanQ));
-                const isNameMatch = Boolean(cleanQ && u.name?.toLowerCase().includes(cleanQ));
-                const isUsernameMatch = Boolean(
-                  cleanQ &&
-                  (u.username?.toLowerCase().includes(cleanQ) ||
-                   u.name?.toLowerCase().replace(/\s+/g, "").includes(cleanQ))
-                );
-
                 return (
                   <Link
                     key={u._id}
@@ -386,27 +400,15 @@ export default function UserSearch() {
                       className="h-10 w-10 shrink-0 text-xs ring-1 ring-gray-200 dark:ring-white/10"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
-                          <Highlight text={u.name} query={cleanQ} />
-                        </p>
-                        {isIdMatch && !isNameMatch && !isUsernameMatch && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-mono font-medium shrink-0 flex items-center gap-0.5">
-                            <Hash size={10} /> ID Match
-                          </span>
-                        )}
-                      </div>
+                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+                        <Highlight text={u.name} query={cleanQ} />
+                      </p>
                       <p className="text-xs text-gray-400 truncate">
-                        @<Highlight text={u.username || u.name?.toLowerCase().replace(/\s+/g, "") || ""} query={cleanQ} />
+                        @<Highlight text={u.username || u.name?.toLowerCase().replace(/\s+/g, "") || "user"} query={cleanQ} />
                         {typeof u.followersCount === "number" && (
                           <span className="ml-1.5">· {u.followersCount} followers</span>
                         )}
                       </p>
-                      {isIdMatch && (
-                        <p className="text-[10px] text-gray-400 font-mono truncate mt-0.5">
-                          ID: <Highlight text={u._id} query={cleanQ} />
-                        </p>
-                      )}
                     </div>
                     <span className="text-[11px] font-semibold text-[#083695] dark:text-blue-400 shrink-0">
                       View
