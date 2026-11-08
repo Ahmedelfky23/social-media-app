@@ -1,7 +1,7 @@
 import { Check, CheckCheck, Pin, VolumeX, X } from "lucide-react";
 import { UserAvatar } from "#components/PostCard/PostCard";
-import type { Conversation } from "./chatMock";
 import { cn } from "cn";
+import type { Conversation } from "../../types/Chat.type";
 
 interface Props {
   conversations: Conversation[];

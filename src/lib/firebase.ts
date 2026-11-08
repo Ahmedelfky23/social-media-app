@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, initializeAuth, browserSessionPersistence, type Auth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -17,9 +17,28 @@ const firebaseConfig = {
 // Initialize Firebase safely (avoid duplicate app init during HMR)
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore & Auth
+// Initialize Firestore
 export const db = getFirestore(app);
-export const auth = getAuth(app);
+
+// Chat identity is scoped to THIS browser tab. The Firebase default (IndexedDB /
+// localStorage) is shared by every tab, so two accounts opened in the same browser
+// would share one Firebase user and every message would render as the other's.
+// The chat session is re-established from the social login on every load, so a
+// per-tab store loses nothing for normal single-tab use.
+//
+// This is configured here (rather than with setPersistence(), which is queued
+// behind the serial auth queue and can stall every later auth call) so auth
+// initialization can never block sign-in.
+function createAuth(): Auth {
+  try {
+    return initializeAuth(app, { persistence: browserSessionPersistence });
+  } catch {
+    // Already initialized (e.g. during Vite HMR) — reuse the existing instance
+    return getAuth(app);
+  }
+}
+
+export const auth = createAuth();
 
 // Initialize Analytics conditionally
 if (typeof window !== "undefined") {

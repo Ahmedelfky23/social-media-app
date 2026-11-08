@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, CheckCheck, Phone, Video, Search,  X } from "lucide-react";
 import { UserAvatar } from "#components/PostCard/PostCard";
-import type { ChatMessage, Conversation } from "./chatMock";
+import type { ChatMessage, Conversation } from "../../types/Chat.type";
 import { cn } from "cn";
 interface Props {
   conversation: Conversation;

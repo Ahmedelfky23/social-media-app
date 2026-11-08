@@ -47,8 +47,8 @@ export interface FirebaseChatMessage {
 
 export interface FirebaseChatDoc {
   id: string;
-  members: string[];                          // Firebase UIDs (size 2)
-  memberDetails?: Record<string, ChatParticipant>; // keyed by Firebase UID or social ID
+  members: string[];                          
+  memberDetails?: Record<string, ChatParticipant>; 
   lastMessage?: string;
   lastSenderId?: string;
   lastMessageTime?: Timestamp | { seconds: number; nanoseconds: number } | null;
@@ -61,14 +61,16 @@ export interface FirebaseChatDoc {
 // ─── Timestamp helpers ─────────────────────────────────────────────────────────
 
 export function formatChatTimestamp(
-  ts?: Timestamp | { seconds: number; nanoseconds: number } | string | null,
+  ts?: Timestamp | { seconds: number; nanoseconds: number } | Date | string | null,
 ): string {
   if (!ts) return "";
   let date: Date;
-  if (typeof ts === "object" && "seconds" in ts) {
-    date = new Date(ts.seconds * 1000);
+  if (ts instanceof Date) {
+    date = ts;
   } else if (typeof ts === "string") {
     date = new Date(ts);
+  } else if ("seconds" in ts) {
+    date = new Date(ts.seconds * 1000);
   } else {
     date = new Date();
   }
@@ -102,87 +104,185 @@ export function tsToMillis(
 
 // ─── Firebase Auth ────────────────────────────────────────────────────────────
 
-export function getDeterministicCredentials(currentUser: User): { email: string; password: string } {
-  const email =
-    currentUser.email && currentUser.email.includes("@")
-      ? currentUser.email.toLowerCase().trim()
-      : `user_${currentUser._id || "member"}@socialapp.local`;
-
-  // Deterministic password shared across app sessions for this user
-  const password = `SocialApp_${currentUser._id || currentUser.email}_SafePass!2026`;
-  return { email, password };
+function normalizeEmail(email?: string | null): string {
+  const value = (email ?? "").toLowerCase().trim();
+  return value.includes("@") ? value : "";
 }
 
-/**
- * Ensure user is authenticated in Firebase Auth.
- * Automatically synchronizes with the social app login.
- * If another user was previously authenticated, it signs them out first.
- */
-export async function ensureFirebaseAuth(currentUser?: User | null): Promise<FirebaseUser> {
+export function getFallbackChatEmail(socialId?: string): string {
+  return `user_${socialId || "member"}@socialapp.local`;
+}
+
+
+export function getPasswordCandidates(socialId?: string, email?: string): string[] {
+  const key = socialId || email || "member";
+  const passwords = [`SocialApp_${key}_SafePass!2026`, `SocialApp_${key}_SafePass!`];
+  const emailKey = normalizeEmail(email);
+  if (emailKey && emailKey !== key) {
+    passwords.push(`SocialApp_${emailKey}_SafePass!2026`, `SocialApp_${emailKey}_SafePass!`);
+  }
+  return passwords;
+}
+
+
+const CHAT_EMAIL_HINT_PREFIX = "chat_fb_email:";
+
+function getChatEmailHint(socialId?: string): string {
+  if (!socialId) return "";
+  try {
+    return localStorage.getItem(CHAT_EMAIL_HINT_PREFIX + socialId) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function setChatEmailHint(socialId: string | undefined, email?: string | null): void {
+  if (!socialId || !email) return;
+  try {
+    localStorage.setItem(CHAT_EMAIL_HINT_PREFIX + socialId, email.toLowerCase());
+  } catch {
+  }
+}
+
+
+export function getEmailCandidates(user: { _id?: string; email?: string }): string[] {
+  const candidates: string[] = [];
+  const hinted = getChatEmailHint(user._id);
+  if (hinted) candidates.push(hinted);
+  const primary = normalizeEmail(user.email);
+  if (primary && !candidates.includes(primary)) candidates.push(primary);
+  const fallback = getFallbackChatEmail(user._id);
+  if (!candidates.includes(fallback)) candidates.push(fallback);
+  return candidates;
+}
+
+export function getDeterministicCredentials(currentUser: User): { email: string; password: string } {
+  return {
+    email: normalizeEmail(currentUser.email) || getFallbackChatEmail(currentUser._id),
+    password: getPasswordCandidates(currentUser._id, currentUser.email)[0],
+  };
+}
+
+
+async function waitForAuthReady(ms = 8000): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      auth.authStateReady(),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(() => {
+          console.warn("Firebase Auth did not finish restoring state in time; continuing.");
+          resolve();
+        }, ms);
+      }),
+    ]);
+  } catch {
+    // Ignore: the sign-in attempts below establish the real state anyway.
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function trySignInAll(emails: string[], passwords: string[]): Promise<FirebaseUser | null> {
+  
+  await waitForAuthReady();
+
+  
+  for (const password of passwords) {
+    for (const email of emails) {
+      try {
+        const res = await signInWithEmailAndPassword(auth, email, password);
+        return res.user;
+      } catch (err: unknown) {
+        if ((err as { code?: string })?.code === "auth/too-many-requests") {
+          console.warn("Firebase is rate limiting sign-in attempts; stopping.");
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+
+const inFlightEnsure = new Map<string, Promise<FirebaseUser>>();
+
+
+export function ensureFirebaseAuth(currentUser?: User | null): Promise<FirebaseUser> {
   if (!currentUser) {
-    if (auth.currentUser) return auth.currentUser;
-    throw new Error("No user to authenticate");
+    if (auth.currentUser) return Promise.resolve(auth.currentUser);
+    return Promise.reject(new Error("No user to authenticate"));
   }
 
-  const { email, password } = getDeterministicCredentials(currentUser);
+  const key = currentUser._id || normalizeEmail(currentUser.email) || "current";
+  const existing = inFlightEnsure.get(key);
+  if (existing) return existing;
 
-  // If already logged in, check if it matches the current social user's email
+  const task = doEnsureFirebaseAuth(currentUser).finally(() => {
+    inFlightEnsure.delete(key);
+  });
+  inFlightEnsure.set(key, task);
+  return task;
+}
+
+async function doEnsureFirebaseAuth(currentUser: User): Promise<FirebaseUser> {
+  await waitForAuthReady();
+
+  const emailCandidates = getEmailCandidates(currentUser);
+  const passwordCandidates = getPasswordCandidates(currentUser._id, currentUser.email);
+
+  const currentEmail = auth.currentUser?.email?.toLowerCase();
+  if (currentEmail && emailCandidates.includes(currentEmail)) {
+    setChatEmailHint(currentUser._id, currentEmail);
+    return auth.currentUser as FirebaseUser;
+  }
+
   if (auth.currentUser) {
-    if (auth.currentUser.email?.toLowerCase() === email.toLowerCase()) {
-      return auth.currentUser;
-    }
-    // Account mismatch: sign out previous user session first
     try {
       await signOut(auth);
     } catch {
-      // ignore
+      // 
     }
   }
 
-  // 1. Try sign-in with deterministic credentials
-  try {
-    const res = await signInWithEmailAndPassword(auth, email, password);
-    return res.user;
-  } catch (err: unknown) {
-    const code = (err as { code?: string })?.code;
-    const isUserNotFound =
-      code === "auth/user-not-found" ||
-      code === "auth/invalid-credential" ||
-      code === "auth/wrong-password" ||
-      code === "auth/invalid-login-credentials";
+  const signedIn = await trySignInAll(emailCandidates, passwordCandidates);
+  if (signedIn) {
+    setChatEmailHint(currentUser._id, signedIn.email);
+    return signedIn;
+  }
 
-    if (isUserNotFound) {
-      // 2. User doesn't exist yet: create deterministic account
-      try {
-        const createRes = await createUserWithEmailAndPassword(auth, email, password);
-        if (currentUser.name || currentUser.photo) {
-          await updateProfile(createRes.user, {
-            displayName: currentUser.name || "User",
-            photoURL: currentUser.photo || "",
-          }).catch(() => {});
-        }
-        return createRes.user;
-      } catch (createErr: unknown) {
-        const createCode = (createErr as { code?: string })?.code;
-        if (createCode === "auth/email-already-in-use") {
-          // Account was created with older password format — try fallback password
-          const oldPw = `SocialApp_${currentUser._id ?? currentUser.email}_SafePass!`;
-          const fallbackRes = await signInWithEmailAndPassword(auth, email, oldPw);
-          return fallbackRes.user;
-        }
-        throw createErr;
+  let lastCreateError: unknown = null;
+  for (const email of emailCandidates) {
+    try {
+      const createRes = await createUserWithEmailAndPassword(auth, email, passwordCandidates[0]);
+      setChatEmailHint(currentUser._id, createRes.user.email);
+      if (currentUser.name || currentUser.photo) {
+        await updateProfile(createRes.user, {
+          displayName: currentUser.name || "User",
+          photoURL: currentUser.photo || "",
+        }).catch(() => {});
       }
+      return createRes.user;
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === "auth/email-already-in-use") {
+        
+        const raced = await trySignInAll([email], [passwordCandidates[0]]);
+        if (raced) {
+          setChatEmailHint(currentUser._id, raced.email);
+          return raced;
+        }
+      }
+      lastCreateError = err;
+      if (code === "auth/too-many-requests") break;
     }
-    throw err;
   }
+  throw lastCreateError ?? new Error("Could not authenticate with Firebase Chat");
 }
 
 // ─── User Registry ────────────────────────────────────────────────────────────
 
-/**
- * Register current user's profile in Firestore (both "users" and "chatUsers").
- * This allows other users to look up this user's Firebase UID for chatting.
- */
+
 export async function registerChatUser(
   socialId: string,
   firebaseUid: string,
@@ -199,16 +299,20 @@ export async function registerChatUser(
     updatedAt: serverTimestamp(),
   };
 
-  await Promise.allSettled([
+  const results = await Promise.allSettled([
     setDoc(doc(db, "users", socialId), payload, { merge: true }),
     setDoc(doc(db, "chatUsers", socialId), payload, { merge: true }),
     setDoc(doc(db, "users", firebaseUid), payload, { merge: true }),
   ]);
+
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.warn("Chat registry write failed (users/" + socialId + "):", result.reason);
+    }
+  }
 }
 
-/**
- * Look up another user's Firebase UID from their social app ID.
- */
+
 export async function getFirebaseUidBySocialId(socialId: string): Promise<string | null> {
   if (!socialId) return null;
 
@@ -235,34 +339,143 @@ export async function getFirebaseUidBySocialId(socialId: string): Promise<string
   return null;
 }
 
+// ─── On-demand chat profile provisioning ──────────────────────────────────────
+
+interface ChatTargetUser {
+  _id: string;
+  name?: string;
+  username?: string;
+  photo?: string;
+  email?: string;
+}
+
+const inFlightProvisions = new Map<string, Promise<string | null>>();
+
+
+/**
+ * Create (or recover) another user's Firebase chat profile on demand.
+ *
+ * A chat document can only be opened once both members' Firebase UIDs exist,
+ * but a user's UID is normally only created on their own first login. Because
+ * this app derives credentials deterministically, we can safely provision their
+ * profile ahead of time instead of forcing the conversation to dead-end:
+ *
+ *  1. Re-check the registry (they may have logged in since we last looked).
+ *  2. Try signing in with their known/fallback addresses — the account may
+ *     already exist even if the registry write failed.
+ *  3. Otherwise create the account for them.
+ *  4. While authenticated AS them, register their chat profile so owner-scoped
+ *     Firestore rules accept the write.
+ *  5. Restore the original user's session before returning control.
+ *
+ * Returns the target's Firebase UID, or null when provisioning isn't possible.
+ */
+export function provisionTargetChatUser(
+  targetUser: ChatTargetUser,
+  currentSocialUser: User,
+  currentFirebaseUid: string,
+): Promise<string | null> {
+  if (!targetUser._id) return Promise.resolve(null);
+
+  const pending = inFlightProvisions.get(targetUser._id);
+  if (pending) return pending;
+
+  const task = runProvisionTargetChatUser(targetUser, currentSocialUser, currentFirebaseUid).finally(() => {
+    inFlightProvisions.delete(targetUser._id);
+  });
+  inFlightProvisions.set(targetUser._id, task);
+  return task;
+}
+
+async function runProvisionTargetChatUser(
+  targetUser: ChatTargetUser,
+  currentSocialUser: User,
+  currentFirebaseUid: string,
+): Promise<string | null> {
+  // 1. They may have logged in since the caller last checked
+  const registered = await getFirebaseUidBySocialId(targetUser._id);
+  if (registered) return registered;
+
+  const emailCandidates = getEmailCandidates(targetUser);
+  const passwordCandidates = getPasswordCandidates(targetUser._id, targetUser.email);
+
+  // 2. The account may already exist (e.g. a previous registry write failed)
+  let targetFbUser = await trySignInAll(emailCandidates, passwordCandidates);
+
+  // 3. No account yet → create one for them
+  for (let i = 0; !targetFbUser && i < emailCandidates.length; i++) {
+    try {
+      const res = await createUserWithEmailAndPassword(auth, emailCandidates[i], passwordCandidates[0]);
+      targetFbUser = res.user;
+    } catch (err: unknown) {
+      // Address taken or invalid → try the next candidate (the deterministic
+      // fallback) so this person still gets a usable chat profile.
+      console.warn(`Chat provisioning: could not use "${emailCandidates[i]}" for "${targetUser._id}".`, err);
+    }
+  }
+
+  if (!targetFbUser) {
+    console.warn(`Chat provisioning: could not create Firebase profile for "${targetUser._id}".`);
+    return null;
+  }
+
+  const targetUid = targetFbUser.uid;
+  setChatEmailHint(targetUser._id, targetFbUser.email);
+
+  // 4. We are authenticated AS the target — register their chat profile now
+  await updateProfile(targetFbUser, {
+    displayName: targetUser.name || "User",
+    photoURL: targetUser.photo || "",
+  }).catch(() => {});
+
+  await registerChatUser(targetUser._id, targetUid, {
+    name: targetUser.name,
+    username: targetUser.username,
+    photo: targetUser.photo,
+    email: targetUser.email,
+  });
+
+  // 5. Restore the original user's session before returning control — messages
+  //    and read receipts must be attributed to the current user, not the target.
+  try {
+    const restored = await ensureFirebaseAuth(currentSocialUser);
+    if (restored.uid !== currentFirebaseUid) {
+      console.error("Chat provisioning restored a different Firebase session:", restored.uid);
+      return null;
+    }
+  } catch (err) {
+    console.error("Failed to restore Firebase session after chat provisioning:", err);
+    return null;
+  }
+
+  return targetUid;
+}
+
 // ─── Chat creation ────────────────────────────────────────────────────────────
 
 export function getChatDocId(uidA: string, uidB: string): string {
   return [uidA, uidB].sort().join("__");
 }
 
-/**
- * Create or get a 1-on-1 chat between current user and target user.
- * Conforms to security rule:
- *   members is list, members.size() == 2, request.auth.uid in members
- */
+
 export async function getOrCreateChat(
   currentUser: User,
-  targetUser: { _id: string; name: string; username?: string; photo?: string; email?: string },
+  targetUser: ChatTargetUser,
   currentFirebaseUid: string,
 ): Promise<{ chatId: string; isNew: boolean; targetNotRegistered?: boolean }> {
   if (!currentFirebaseUid) throw new Error("Not authenticated to Firebase");
 
-  // 1. Look up target's Firebase UID
-  let targetFirebaseUid = await getFirebaseUidBySocialId(targetUser._id);
+  let targetFirebaseUid: string | null =
+    targetUser._id === currentUser._id
+      ? currentFirebaseUid
+      : await getFirebaseUidBySocialId(targetUser._id);
 
-  // If target user is current user
-  if (targetUser._id === currentUser._id) {
-    targetFirebaseUid = currentFirebaseUid;
+  
+  if (!targetFirebaseUid) {
+    targetFirebaseUid = await provisionTargetChatUser(targetUser, currentUser, currentFirebaseUid);
   }
 
   if (!targetFirebaseUid) {
-    // Target user hasn't registered in Firebase chat yet
     return {
       chatId: "",
       isNew: false,
@@ -361,7 +574,6 @@ export function subscribeToUserChats(
         ...(d.data() as Omit<FirebaseChatDoc, "id">),
       }));
 
-      // Sort by most recent activity
       chats.sort((a, b) => tsToMillis(b.updatedAt ?? b.lastMessageTime) - tsToMillis(a.updatedAt ?? a.lastMessageTime));
       onUpdate(chats);
     },
@@ -408,10 +620,7 @@ export function subscribeToChatMessages(
 
 // ─── Mark as read ─────────────────────────────────────────────────────────────
 
-/**
- * Record when the current user read this chat.
- * Updates only lastReadAt.{uid} to preserve updatedAt message order.
- */
+
 export async function markChatAsRead(chatId: string): Promise<void> {
   const uid = auth.currentUser?.uid;
   if (!uid || !chatId) return;
@@ -424,10 +633,7 @@ export async function markChatAsRead(chatId: string): Promise<void> {
   }
 }
 
-/**
- * Check if a message has been read by the OTHER user.
- * Returns true ONLY if the other user has updated their lastReadAt past this message's timestamp.
- */
+
 export function isMessageSeen(
   msgCreatedAt: Timestamp | { seconds: number; nanoseconds: number } | null | undefined,
   chat: FirebaseChatDoc,
@@ -445,7 +651,6 @@ export function isMessageSeen(
   const msgMs = tsToMillis(msgCreatedAt ?? null);
   const readMs = tsToMillis(otherReadAt);
 
-  // If message timestamp is not yet confirmed by the server (local write), it cannot be seen yet
   if (msgMs === 0) return false;
 
   return readMs >= msgMs;
@@ -453,12 +658,7 @@ export function isMessageSeen(
 
 // ─── Send message ─────────────────────────────────────────────────────────────
 
-/**
- * Send a message conforming strictly to the security rules:
- *   keys().hasOnly(["text", "senderId", "createdAt"])
- *   senderId == request.auth.uid
- *   text is string, 1 <= size <= 2000
- */
+
 export async function sendChatMessage(chatId: string, text: string): Promise<void> {
   const trimmed = text.trim();
   if (!trimmed || trimmed.length > 2000) {
@@ -486,22 +686,16 @@ export async function sendChatMessage(chatId: string, text: string): Promise<voi
 
 // ─── Delete chat ──────────────────────────────────────────────────────────────
 
-/**
- * Close and delete a chat.
- * Attempts permanent deletion first; if Firestore security rules prohibit delete,
- * falls back to soft-deleting/hiding for the current user via updateDoc.
- */
+
 export async function deleteChat(chatId: string): Promise<void> {
   const uid = auth.currentUser?.uid;
   if (!chatId || !uid) return;
 
-  // 1. Try hard delete of the chat document
   try {
     await deleteDoc(doc(db, "chats", chatId));
     return;
   } catch (err: unknown) {
     const code = (err as { code?: string })?.code;
-    // If permission-denied (due to rules lacking 'allow delete'), fallback to soft hide
     if (code === "permission-denied") {
       try {
         await updateDoc(doc(db, "chats", chatId), {

@@ -79,7 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               email: userLogin.email,
             });
           })
-          .catch(() => {});
+          .catch((err) => {
+            // Without this registration other users cannot start chats with you
+            console.warn("Firebase chat profile registration failed:", err);
+          });
       }
     } else {
       localStorage.removeItem("user");

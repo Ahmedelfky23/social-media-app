@@ -1,7 +1,7 @@
 import { ImagePlus, Mic, Send, Smile } from "lucide-react";
 import { useRef, useEffect } from "react";
-import type { Conversation } from "./chatMock";
 import { useChatDraft } from "./ChatBoxParts";
+import type { Conversation } from "../../types/Chat.type";
 
 const QUICK = ["👍", "❤️", "😂", "On my way!", "Let's call?"];
 const EMOJIS = ["😀","😂","😍","🔥","👍","🎉","😢","🙏","💯","❤️","😮","👏","🤝","✨","🚀","💻"];

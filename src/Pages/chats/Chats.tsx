@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useContext, useCallback } from "react";
+import { useEffect, useMemo, useState, useContext, useCallback, useRef } from "react";
 import { Helmet } from "react-helmet";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { MessageCircle, PenSquare, Search, Loader2, AlertCircle, Sparkles, UserPlus } from "lucide-react";
@@ -24,12 +24,22 @@ import {
   type FirebaseChatDoc,
   type FirebaseChatMessage,
 } from "../../services/chatService";
-import type { Conversation, ChatMessage } from "../../components/chat/chatMock";
+import type { Conversation, ChatMessage } from "../../types/Chat.type";
 import { cn } from "cn";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUserPool, type ExtendedSearchUser } from "#components/Navbar/UserSearch";
 
 const USER_CACHE_KEY = "app_known_users";
+
+const AUTH_TIMEOUT_MS = 20000;
+
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
 
 function getCachedUsers(): ExtendedSearchUser[] {
   try {
@@ -42,6 +52,11 @@ function getCachedUsers(): ExtendedSearchUser[] {
     //
   }
   return [];
+}
+
+interface PendingMessage {
+  chatId: string;
+  message: ChatMessage;
 }
 
 export default function Chats() {
@@ -62,6 +77,9 @@ export default function Chats() {
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [targetNotRegistered, setTargetNotRegistered] = useState(false);
+  const autoStartedTargetRef = useRef<string | null>(null);
+  const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
+  const seenIdsRef = useRef<{ chatId: string; ids: Set<string> }>({ chatId: "", ids: new Set() });
 
   // ── Load known and suggested users ──────────────────────────────────────────
   const { data: poolUsers = [] } = useQuery({
@@ -78,7 +96,6 @@ export default function Chats() {
     staleTime: 1000 * 60 * 3,
   });
 
-  // ── 1. Init Firebase Auth + register in Firestore ──────────────────────────
   useEffect(() => {
     let isMounted = true;
 
@@ -86,17 +103,24 @@ export default function Chats() {
       setIsInitializing(true);
       setAuthError(null);
       try {
-        const fbUser = await ensureFirebaseAuth(userLogin);
+        const fbUser = await withTimeout(ensureFirebaseAuth(userLogin), AUTH_TIMEOUT_MS);
         if (!isMounted) return;
+        if (!fbUser) {
+          const timeoutErr = new Error("Firebase auth timed out") as Error & { code?: string };
+          timeoutErr.code = "chat/auth-timeout";
+          throw timeoutErr;
+        }
         setFirebaseUid(fbUser.uid);
 
-        // Register current user so other participants can discover their Firebase UID
+        
         if (userLogin?._id) {
-          await registerChatUser(userLogin._id, fbUser.uid, {
+          void registerChatUser(userLogin._id, fbUser.uid, {
             name: userLogin.name,
             username: userLogin.username,
             photo: userLogin.photo,
             email: userLogin.email,
+          }).catch((err) => {
+            console.warn("Chat registry write failed:", err);
           });
         }
       } catch (err: unknown) {
@@ -106,6 +130,22 @@ export default function Chats() {
           setAuthError(
             "Firebase Email/Password Authentication is not enabled. Go to Firebase Console → Authentication → Sign-in method, and enable Email/Password.",
           );
+        } else if (code === "auth/too-many-requests") {
+          setAuthError(
+            "Firebase temporarily blocked sign-in attempts (too many in a row). Wait about a minute, then reload the page — chat will reconnect automatically.",
+          );
+        } else if (code === "auth/network-request-failed") {
+          setAuthError("Could not reach Firebase. Check your internet connection, then reload the page.");
+        } else if (code === "chat/auth-timeout") {
+          setAuthError(
+            "Chat couldn't connect to Firebase in time. Check your internet connection, then reload the page.",
+          );
+        } else if (code === "auth/email-already-in-use") {
+          setAuthError(
+            "This email is already registered to a different chat account, so chat could not sign in. Log out and back in, then reload the page.",
+          );
+        } else if (code) {
+          setAuthError(`Could not connect to Firebase Chat. Check your internet connection or Firebase setup. (${code})`);
         } else {
           setAuthError("Could not connect to Firebase Chat. Check your internet connection or Firebase setup.");
         }
@@ -131,7 +171,6 @@ export default function Chats() {
     return () => unsub();
   }, [firebaseUid]);
 
-  // ── 3. Transform Firestore docs → Conversation UI objects ──────────────────
   const conversations: Conversation[] = useMemo(() => {
     if (!firebaseUid) return [];
 
@@ -141,7 +180,6 @@ export default function Chats() {
         // Find other member ID in the 2-member chat
         const otherUid = c.members?.find((m) => m !== firebaseUid) ?? c.members?.[0] ?? "";
 
-        // Try resolving user info from memberDetails:
         const detailsFromDoc =
           c.memberDetails?.[otherUid] ||
           (c.memberDetails
@@ -150,7 +188,6 @@ export default function Chats() {
               )
             : undefined);
 
-        // Also cross-reference with poolUsers for high quality photo & username
         const infoFromPool = poolUsers.find(
           (u) =>
             u._id === detailsFromDoc?.id ||
@@ -163,14 +200,12 @@ export default function Chats() {
         const username = detailsFromDoc?.username || infoFromPool?.username || "user";
         const photo = detailsFromDoc?.photo || infoFromPool?.photo || "";
 
-        // Determine seen status for the last message
         const lastSenderIsMe = Boolean(c.lastSenderId && c.lastSenderId === firebaseUid);
         const otherReadAt = otherUid ? c.lastReadAt?.[otherUid] : undefined;
         const lastMsgMs = tsToMillis(c.lastMessageTime ?? c.updatedAt);
         const otherReadMs = tsToMillis(otherReadAt);
         const lastMessageSeen = Boolean(lastSenderIsMe && otherReadMs > 0 && otherReadMs >= lastMsgMs);
 
-        // Determine unread count for current user
         const myReadAt = c.lastReadAt?.[firebaseUid];
         const myReadMs = tsToMillis(myReadAt);
         const hasUnread = Boolean(
@@ -199,23 +234,26 @@ export default function Chats() {
   // ── 4. Auto-select chat from navigation state ──────────────────────────────
   const startChatWithTarget = useCallback(
     async (targetData: { _id: string; name: string; username?: string; photo?: string; email?: string }) => {
-      if (!userLogin || !firebaseUid) return;
+      if (!userLogin || !firebaseUid) return false;
       setTargetNotRegistered(false);
 
       const result = await getOrCreateChat(userLogin, targetData, firebaseUid).catch((err) => {
         console.error("getOrCreateChat failed:", err);
+        // Provisioning/connection failure — show the notice instead of failing silently
+        setTargetNotRegistered(true);
         return null;
       });
 
-      if (!result) return;
+      if (!result) return false;
 
       if (result.targetNotRegistered) {
         setTargetNotRegistered(true);
-        return;
+        return false;
       }
 
       setActiveId(result.chatId);
       setMobileView("chat");
+      return true;
     },
     [userLogin, firebaseUid],
   );
@@ -234,12 +272,18 @@ export default function Chats() {
           name: "User",
           username: "user",
         };
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      void startChatWithTarget(targetUser);
+
+      if (autoStartedTargetRef.current !== targetIdFromUrl) {
+        autoStartedTargetRef.current = targetIdFromUrl;
+        void startChatWithTarget(targetUser).then((started) => {
+          if (!started) autoStartedTargetRef.current = null;
+        });
+      }
       return;
     }
 
     if (!activeId && conversations.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveId(conversations[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -272,7 +316,25 @@ export default function Chats() {
         });
         setMessages(mapped);
 
-        // If there are incoming messages from the other user, mark as read
+        
+        if (seenIdsRef.current.chatId !== activeId) {
+          seenIdsRef.current = { chatId: activeId, ids: new Set() };
+        }
+        const knownIds = seenIdsRef.current.ids;
+        const newlyConfirmed = mapped.filter((m) => !knownIds.has(m.id));
+        for (const m of newlyConfirmed) knownIds.add(m.id);
+        const confirmedTexts = newlyConfirmed.filter((m) => m.isMe).map((m) => m.text);
+        if (confirmedTexts.length > 0) {
+          setPendingMessages((prev) => {
+            const remaining = [...prev];
+            for (const text of confirmedTexts) {
+              const idx = remaining.findIndex((p) => p.chatId === activeId && p.message.text === text);
+              if (idx !== -1) remaining.splice(idx, 1);
+            }
+            return remaining.length === prev.length ? prev : remaining;
+          });
+        }
+
         const hasIncoming = fbMessages.some((m) => m.senderId !== firebaseUid);
         if (hasIncoming) {
           void markChatAsRead(activeId);
@@ -281,7 +343,6 @@ export default function Chats() {
       (err) => console.error("Messages subscription error:", err),
     );
 
-    // Mark as read upon opening chat
     void markChatAsRead(activeId);
 
     return () => unsub();
@@ -291,7 +352,6 @@ export default function Chats() {
   const handleDeleteChat = useCallback(
     async (chatId: string) => {
       if (!chatId) return;
-      // Optimistic removal
       setRawChats((prev) => prev.filter((c) => c.id !== chatId));
       if (activeId === chatId) {
         setActiveId("");
@@ -308,13 +368,21 @@ export default function Chats() {
     return conversations.find((c) => c.id === activeId);
   }, [conversations, activeId]);
 
+ 
+  const visibleMessages = useMemo(
+    () => [
+      ...messages,
+      ...pendingMessages.filter((p) => p.chatId === activeId).map((p) => p.message),
+    ],
+    [messages, pendingMessages, activeId],
+  );
+
   // ── Filter ─────────────────────────────────────────────────────────────────
   const visible = useMemo(
     () => (filter === "unread" ? conversations.filter((c) => c.unread > 0) : conversations),
     [filter, conversations],
   );
 
-  // Suggested people to start a chat with
   const suggestedPeople = useMemo(() => {
     const existingOtherSocialIds = new Set(
       rawChats
@@ -333,11 +401,31 @@ export default function Chats() {
   // ── Send ───────────────────────────────────────────────────────────────────
   async function handleSend(text: string) {
     if (!activeId || isSending) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
     setIsSending(true);
+
+    
+    const optimisticId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const optimistic: PendingMessage = {
+      chatId: activeId,
+      message: {
+        id: optimisticId,
+        senderId: firebaseUid ?? "me",
+        text: trimmed,
+        time: formatChatTimestamp(new Date()),
+        isMe: true,
+        seen: false,
+      },
+    };
+    setPendingMessages((prev) => [...prev, optimistic]);
+
     try {
-      await sendChatMessage(activeId, text);
+      await sendChatMessage(activeId, trimmed);
     } catch (err) {
       console.error("Send failed:", err);
+      setPendingMessages((prev) => prev.filter((p) => p.message.id !== optimisticId));
     } finally {
       setIsSending(false);
     }
@@ -389,9 +477,9 @@ export default function Chats() {
         <div className="mb-3 p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 flex items-start gap-3 text-blue-800 dark:text-blue-200 text-xs sm:text-sm shrink-0">
           <MessageCircle size={18} className="shrink-0 text-blue-500 mt-0.5" />
           <div>
-            <p className="font-bold mb-0.5">User Hasn't Activated Chat Yet</p>
+            <p className="font-bold mb-0.5">Couldn't Start This Chat</p>
             <p className="text-blue-600 dark:text-blue-300">
-              The other user needs to log in at least once so their chat profile is created in Firebase. Once they log in, you will be able to message them immediately.
+              We tried to set this conversation up automatically but couldn't reach Firebase right now. Check your internet connection and try again — if it keeps happening, the other person may need to open the app once so their chat profile can be created.
             </p>
           </div>
         </div>
@@ -535,7 +623,7 @@ export default function Chats() {
                 onBack={() => setMobileView("list")}
                 onDeleteChat={() => handleDeleteChat(activeConversation.id)}
               />
-              <ChatMessages conversation={activeConversation} messages={messages} />
+              <ChatMessages conversation={activeConversation} messages={visibleMessages} />
               <ChatInput
                 conversation={activeConversation}
                 onSend={handleSend}
