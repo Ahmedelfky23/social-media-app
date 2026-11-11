@@ -73,12 +73,13 @@ export default function Navbar () {
         <button
           onClick={toggleTheme}
           aria-label="Toggle theme"
-          className="p-1.5 sm:p-2 rounded-full text-gray-700 dark:text-gray-300 hover:text-[#083695] dark:hover:text-[#60a5fa] hover:bg-[#083695]/10 dark:hover:bg-white/10 transition-all duration-300 cursor-pointer"
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          className="p-1.5 sm:p-2 rounded-full text-gray-700 dark:text-gray-300 hover:text-[#083695] dark:hover:text-[#60a5fa] hover:bg-[#083695]/10 dark:hover:bg-white/10 active:scale-90 transition-all duration-200 cursor-pointer"
         >
           {theme === "dark" ? (
-            <Sun size={18} className="text-amber-400 sm:w-5 sm:h-5 transition-transform rotate-0" />
+            <Sun size={18} className="text-amber-400 sm:w-5 sm:h-5 transition-transform hover:rotate-45" />
           ) : (
-            <Moon size={18} className="text-[#083695] sm:w-5 sm:h-5 transition-transform rotate-0" />
+            <Moon size={18} className="text-[#083695] sm:w-5 sm:h-5 transition-transform hover:-rotate-12" />
           )}
         </button>
 
@@ -86,12 +87,12 @@ export default function Navbar () {
         <NotificationsMenu />
 
         {/* زر اقتراح الأصدقاء */}
-        <div ref={suggestionsRef} className="relative hidden xl:block">
+        <div ref={suggestionsRef} className="relative block">
           <button
             onClick={() => setSuggestionsOpen(prev => !prev)}
             aria-label="People you may know"
             title="People you may know"
-            className={`p-1.5 sm:p-2 rounded-full transition-all duration-300 cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-full active:scale-90 transition-all duration-200 cursor-pointer ${
               suggestionsOpen
                 ? "bg-[#083695]/15 dark:bg-blue-400/20 text-[#083695] dark:text-blue-400"
                 : "text-gray-700 dark:text-gray-300 hover:text-[#083695] dark:hover:text-blue-400 hover:bg-[#083695]/10 dark:hover:bg-white/10"

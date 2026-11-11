@@ -34,18 +34,20 @@ function Row({
         }
       }}
       className={cn(
-        "w-full flex items-center gap-3 px-3 py-3 text-left cursor-pointer group relative transition-colors select-none",
-        active ? "bg-[#083695]/8 dark:bg-white/8" : "hover:bg-[#083695]/4 dark:hover:bg-white/4",
+        "w-full flex items-center gap-3 px-3 py-3 text-left cursor-pointer group relative transition-all duration-150 select-none",
+        active
+          ? "bg-[#083695]/10 dark:bg-white/10 font-medium"
+          : "hover:bg-[#083695]/5 dark:hover:bg-white/5",
       )}
     >
       <span
         className={cn(
-          "absolute left-0 top-1/2 -translate-y-1/2 w-1 h-10 rounded-r-full bg-[#083695] dark:bg-blue-500 transition-all",
-          active ? "opacity-100" : "opacity-0",
+          "absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-9 rounded-r-full bg-[#083695] dark:bg-blue-500 transition-all duration-200",
+          active ? "opacity-100 scale-y-100" : "opacity-0 scale-y-50",
         )}
       />
       <div className="relative shrink-0">
-        <UserAvatar photo={c.photo} name={c.name} className="h-12 w-12" />
+        <UserAvatar photo={c.photo} name={c.name} className="h-12 w-12 transition-transform duration-200 group-hover:scale-105" />
         {c.online && !c.isGroup && (
           <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0f172a]" />
         )}

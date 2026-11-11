@@ -49,7 +49,7 @@ export function ChatInput({
             key={q}
             onClick={() => onSend(q)}
             disabled={isSending}
-            className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-[#083695]/15 dark:border-white/15 text-[#083695] dark:text-blue-300 hover:bg-[#083695] hover:text-white dark:hover:bg-blue-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-[#083695]/15 dark:border-white/15 text-[#083695] dark:text-blue-300 hover:bg-[#083695] hover:text-white dark:hover:bg-blue-600 dark:hover:text-white active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
           >
             {q}
           </button>
@@ -57,19 +57,21 @@ export function ChatInput({
       </div>
 
       <form onSubmit={submit} className="p-3 sm:p-4">
-        <div className="flex items-end gap-1.5 bg-[#eef2fb] dark:bg-white/5 rounded-2xl px-2 py-2 ring-0 focus-within:ring-2 focus-within:ring-[#083695]/30 transition-shadow">
+        <div className="flex items-end gap-1.5 bg-[#eef2fb] dark:bg-white/5 rounded-2xl px-2 py-1.5 ring-0 focus-within:ring-2 focus-within:ring-[#083695]/30 dark:focus-within:ring-blue-400/30 transition-all">
           <button
             type="button"
             onClick={() => setShowEmoji((v) => !v)}
-            className="p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:text-[#083695] cursor-pointer"
+            className="p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:text-[#083695] dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
             aria-label="Emoji"
+            title="Insert emoji"
           >
             <Smile size={20} />
           </button>
           <button
             type="button"
-            className="p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:text-[#083695] cursor-pointer"
+            className="p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:text-[#083695] dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
             aria-label="Attach"
+            title="Attach image"
           >
             <ImagePlus size={20} />
           </button>
@@ -86,8 +88,9 @@ export function ChatInput({
             <button
               type="submit"
               disabled={isSending}
-              className="h-10 w-10 shrink-0 rounded-xl bg-[#083695] dark:bg-blue-600 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
+              className="h-10 w-10 shrink-0 rounded-xl bg-[#083695] dark:bg-blue-600 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
               aria-label="Send"
+              title="Send message"
             >
               {isSending ? (
                 <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -98,21 +101,22 @@ export function ChatInput({
           ) : (
             <button
               type="button"
-              className="h-10 w-10 shrink-0 rounded-xl bg-[#083695]/10 dark:bg-white/10 text-[#083695] dark:text-white flex items-center justify-center cursor-pointer"
+              className="h-10 w-10 shrink-0 rounded-xl bg-[#083695]/10 dark:bg-white/10 text-[#083695] dark:text-white flex items-center justify-center hover:bg-[#083695]/15 dark:hover:bg-white/15 active:scale-95 transition-all cursor-pointer"
               aria-label="Voice"
+              title="Record voice message"
             >
               <Mic size={18} />
             </button>
           )}
         </div>
         {showEmoji && (
-          <div className="mt-2 flex gap-1 flex-wrap bg-[#eef2fb] dark:bg-white/5 rounded-2xl p-2">
+          <div className="mt-2 flex gap-1 flex-wrap bg-[#eef2fb] dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-2xl p-2.5 shadow-sm animate-in fade-in duration-150">
             {EMOJIS.map((e) => (
               <button
                 key={e}
                 type="button"
                 onClick={() => setDraft((d) => d + e)}
-                className="text-xl hover:scale-125 transition-transform cursor-pointer p-1"
+                className="text-xl hover:scale-125 active:scale-95 transition-transform cursor-pointer p-1.5 rounded-lg hover:bg-white/50 dark:hover:bg-white/10"
               >
                 {e}
               </button>

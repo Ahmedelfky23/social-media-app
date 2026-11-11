@@ -17,6 +17,7 @@ import type { CommentType } from "../../types/Comment.type";
 import { useAuth } from "../../context/AuthContext";
 import { useCommentActions } from "#hooks/useCommentActions";
 import { AddReply } from "#components/comment/AddReply";
+import MentionText from "../Mention/MentionText";
 
 const MAX_NEST_DEPTH = 8;
 
@@ -165,7 +166,7 @@ export function ReplyItem({
             <>
               {reply.content && (
                 <p className="text-xs text-gray-700 dark:text-gray-200 leading-snug mt-0.5 whitespace-pre-wrap wrap-break-word">
-                  {reply.content}
+                  <MentionText text={reply.content} />
                 </p>
               )}
 

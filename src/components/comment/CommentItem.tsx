@@ -25,6 +25,7 @@ import { API, authHeader } from "#hooks/usePostActions";
 import { AddReply } from "#components/comment/AddReply";
 import { ReplyItem } from "#components/comment/ReplyItem";
 import { useReplyThreads } from "#hooks/useReplyThreads";
+import MentionText from "../Mention/MentionText";
 
 export function CommentItem({
   comment,
@@ -163,7 +164,7 @@ export function CommentItem({
             </form>
           ) : comment.content && (
             <p className="mt-0.5 text-xs text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-wrap wrap-break-word">
-              {comment.content}
+              <MentionText text={comment.content} />
             </p>
           )}
 

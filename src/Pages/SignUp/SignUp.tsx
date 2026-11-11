@@ -155,7 +155,7 @@ export default function Signup() {
           </div>
 
           <div className="text-xs text-blue-200/60 pb-2">
-            © 2026 SocialApp. All rights reserved.
+            © 2026 SocialApp. Developed by Ahmed El-Feky. All rights reserved.
           </div>
         </div>
 

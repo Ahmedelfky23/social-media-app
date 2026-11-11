@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Loader2, X, Send } from "lucide-react";
+import { ImagePlus, Loader2, X, Send, AtSign } from "lucide-react";
 import axios from "axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../context/AuthContext";
 import { UserAvatar } from "#components/PostCard/PostCard";
 import { Button } from "#components/ui/button";
 import { toast } from "#components/ui/toast";
+import { useMentionInput } from "../Mention/useMentionInput";
+import { MentionSuggestionsList } from "../Mention/MentionSuggestionsList";
 import {
   API,
   authHeader,
@@ -25,11 +27,27 @@ export default function EditPostModal({ open, onClose, post }: EditPostModalProp
   const queryClient = useQueryClient();
 
   const fileInput = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [body, setBody] = useState(post?.body ?? "");
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState(post?.image || "");
   const [imageRemoved, setImageRemoved] = useState(false);
+
+  const {
+    isSuggesting,
+    suggestions,
+    activeIndex,
+    setActiveIndex,
+    selectSuggestion,
+    handleKeyDown,
+    triggerMention,
+    updateCursor,
+  } = useMentionInput({
+    value: body,
+    onChange: setBody,
+    inputRef: textareaRef,
+  });
 
   useEffect(() => {
     if (open) {
@@ -155,14 +173,36 @@ export default function EditPostModal({ open, onClose, post }: EditPostModalProp
               name={userLogin?.name || post.user?.name}
               className="h-10 w-10 shrink-0"
             />
-            <textarea
-              value={body ?? ""}
-              onChange={(e) => setBody(e.target.value)}
-              rows={3}
-              placeholder="What's on your mind?"
-              aria-label="Edit post content"
-              className="min-h-11 flex-1 resize-none overflow-hidden bg-transparent py-2.5 text-sm text-[#083695] dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none border border-[#083695]/10 dark:border-white/10 rounded-xl px-2"
-            />
+            <div className="flex-1 min-w-0 relative">
+              <textarea
+                ref={textareaRef}
+                value={body ?? ""}
+                onChange={(e) => {
+                  setBody(e.target.value);
+                  updateCursor();
+                }}
+                onKeyDown={handleKeyDown}
+                onKeyUp={updateCursor}
+                onClick={updateCursor}
+                onSelect={updateCursor}
+                rows={3}
+                placeholder="What's on your mind? (Type @ to mention)"
+                aria-label="Edit post content"
+                className="w-full min-h-11 resize-none overflow-hidden bg-transparent py-2.5 text-sm text-[#083695] dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none border border-[#083695]/10 dark:border-white/10 rounded-xl px-2 focus:border-[#083695]/40 dark:focus:border-blue-400/50"
+              />
+
+              {isSuggesting && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-50">
+                  <MentionSuggestionsList
+                    isOpen={isSuggesting}
+                    suggestions={suggestions}
+                    activeIndex={activeIndex}
+                    onSelect={selectSuggestion}
+                    onHoverIndex={setActiveIndex}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {preview && (
@@ -184,13 +224,22 @@ export default function EditPostModal({ open, onClose, post }: EditPostModalProp
           )}
 
           <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 dark:border-white/8">
-            <button
-              type="button"
-              onClick={() => fileInput.current?.click()}
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
-            >
-              <ImagePlus size={18} className="text-green-500" /> Photo
-            </button>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                type="button"
+                onClick={() => fileInput.current?.click()}
+                className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
+              >
+                <ImagePlus size={18} className="text-green-500" /> Photo
+              </button>
+              <button
+                type="button"
+                onClick={triggerMention}
+                className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
+              >
+                <AtSign size={17} className="text-[#083695] dark:text-blue-400" /> Mention
+              </button>
+            </div>
 
             <input
               ref={fileInput}

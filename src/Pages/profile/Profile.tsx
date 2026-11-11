@@ -30,6 +30,7 @@ import type { User } from "../../context/AuthContext";
 import ChangePassword from "#components/ChangePassword/ChangePassword";
 import { toast } from "#components/ui/toast";
 import CreatePost from "#components/CreatePost/CreatePost";
+import FollowersModal from "../../components/FollowersModal/FollowersModal";
 import { Helmet } from "react-helmet";
 
 interface OtherUserProfile {
@@ -99,6 +100,13 @@ export default function Profile() {
   const [copied, setCopied] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [followModalOpen, setFollowModalOpen] = useState(false);
+  const [followModalTab, setFollowModalTab] = useState<"followers" | "following">("followers");
+
+  function openFollowModal(tab: "followers" | "following") {
+    setFollowModalTab(tab);
+    setFollowModalOpen(true);
+  }
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -497,17 +505,36 @@ export default function Profile() {
                   )}
                 </div>
 
-                {/* Followers & Following counts */}
-                <div className="flex items-center gap-4 pt-1 text-xs">
-                  <span className="font-semibold text-gray-800 dark:text-white">
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {((profile as any).followingCount ?? (profile as any).following?.length ?? 0)}{" "}
-                    <span className="font-normal text-gray-400 dark:text-gray-500">Following</span>
-                  </span>
-                  <span className="font-semibold text-gray-800 dark:text-white">
-                    {followersCount}{" "}
-                    <span className="font-normal text-gray-400 dark:text-gray-500">Followers</span>
-                  </span>
+                {/* Followers & Following counts - Instagram style clickable */}
+                <div className="flex items-center gap-4 pt-1.5 text-xs sm:text-sm">
+                  <button
+                    type="button"
+                    onClick={() => openFollowModal("following")}
+                    className="flex items-center gap-1.5 hover:text-[#083695] dark:hover:text-blue-400 transition-all cursor-pointer group active:scale-95"
+                    title="View following list"
+                  >
+                    <span className="font-bold text-gray-900 dark:text-white group-hover:text-[#083695] dark:group-hover:text-blue-400">
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      {((profile as any).followingCount ?? (profile as any).following?.length ?? 0)}
+                    </span>
+                    <span className="font-medium text-gray-500 dark:text-gray-400 group-hover:underline">
+                      Following
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => openFollowModal("followers")}
+                    className="flex items-center gap-1.5 hover:text-[#083695] dark:hover:text-blue-400 transition-all cursor-pointer group active:scale-95"
+                    title="View followers list"
+                  >
+                    <span className="font-bold text-gray-900 dark:text-white group-hover:text-[#083695] dark:group-hover:text-blue-400">
+                      {followersCount}
+                    </span>
+                    <span className="font-medium text-gray-500 dark:text-gray-400 group-hover:underline">
+                      Followers
+                    </span>
+                  </button>
                 </div>
 
                 {/* bio (only if the user has one) */}
@@ -560,7 +587,11 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div className="group bg-slate-50/80 dark:bg-white/4 hover:bg-emerald-500/5 dark:hover:bg-white/7 border border-gray-100 dark:border-white/8 rounded-2xl p-3 sm:p-4 transition-all duration-200 flex items-center gap-3 sm:gap-3.5">
+                <div
+                  onClick={() => openFollowModal("followers")}
+                  className="group bg-slate-50/80 dark:bg-white/4 hover:bg-emerald-500/5 dark:hover:bg-white/7 border border-gray-100 dark:border-white/8 hover:border-emerald-500/20 rounded-2xl p-3 sm:p-4 transition-all duration-200 flex items-center gap-3 sm:gap-3.5 cursor-pointer active:scale-95 shadow-2xs hover:shadow-xs"
+                  title="View followers"
+                >
                   <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                     <Users size={18} className="text-emerald-600 dark:text-emerald-400" />
                   </div>
@@ -766,6 +797,26 @@ export default function Profile() {
       <ChangePassword
         open={passwordModalOpen}
         onClose={() => setPasswordModalOpen(false)}
+      />
+
+      {/* ====== Followers / Following Modal (Instagram style) ====== */}
+      <FollowersModal
+        open={followModalOpen}
+        onClose={() => setFollowModalOpen(false)}
+        initialTab={followModalTab}
+        targetUser={{
+          _id: targetUserId as string,
+          name: profile.name,
+          username: profile.username,
+        }}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        followersList={((profile as any).followers as unknown[]) || []}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        followingList={((profile as any).following as unknown[]) || []}
+        myFollowingList={myFollowingList}
+        followersCount={followersCount}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        followingCount={((profile as any).followingCount ?? (profile as any).following?.length ?? 0)}
       />
     </div>
   );

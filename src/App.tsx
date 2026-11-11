@@ -14,6 +14,10 @@ import { Bookmarks } from "./Pages/Bookmarks/Bookmarks";
 import PostDetails from "./Pages/PostDetails/PostDetails";
 import { Setting } from "./Pages/settings/Setting";
 import Chats from "./Pages/chats/Chats";
+import About from "./Pages/About/About";
+import Terms from "./Pages/Terms/Terms";
+import Privacy from "./Pages/Privacy/Privacy";
+import Help from "./Pages/Help/Help";
 import { AuthProtectedroute, Protectedroute } from "#components/ProtectedRoute/ProtectedRoute";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import OfflineBanner from "#components/OfflineBanner/OfflineBanner";
@@ -53,6 +57,10 @@ const Routers = createBrowserRouter([
       },
       { path: "settings", element: <Protectedroute><Setting /></Protectedroute> },
       { path: "chats", element: <Protectedroute><Chats /></Protectedroute> },
+      { path: "about", element: <About /> },
+      { path: "terms", element: <Terms /> },
+      { path: "privacy", element: <Privacy /> },
+      { path: "help", element: <Help /> },
       { path: "*", element: <Notfound /> },
     ],
   },

@@ -2,9 +2,29 @@ import { useContext, useCallback, useEffect, useRef, useMemo } from "react";
 import { Helmet } from "react-helmet";
 import PostCard from "../../components/PostCard/PostCard";
 import CreatePost from "../../components/CreatePost/CreatePost";
+import TrendingWidget from "../../components/TrendingWidget/TrendingWidget";
 import { AuthContext } from "../../context/AuthContext";
 import { Image, Loader2, CheckCircle2 } from "lucide-react";
 import { useFeedPosts, FEED_PAGE_SIZE } from "../../hooks/useFeedPosts";
+
+function PostSkeleton() {
+  return (
+    <div className="w-full sm:w-[92%] lg:w-[85%] mx-auto rounded-2xl border border-gray-100 dark:border-white/8 bg-white dark:bg-[#0f172a] p-4 animate-pulse space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-white/10 shrink-0" />
+        <div className="space-y-1.5 flex-1">
+          <div className="h-3 w-28 rounded-md bg-gray-200 dark:bg-white/10" />
+          <div className="h-2.5 w-16 rounded-md bg-gray-200 dark:bg-white/10" />
+        </div>
+      </div>
+      <div className="space-y-2 pt-1">
+        <div className="h-3 w-full rounded-md bg-gray-200 dark:bg-white/10" />
+        <div className="h-3 w-4/5 rounded-md bg-gray-200 dark:bg-white/10" />
+      </div>
+      <div className="h-48 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
+    </div>
+  );
+}
 
 export default function Home() {
   const { userLogin } = useContext(AuthContext);
@@ -61,8 +81,8 @@ export default function Home() {
         />
       </Helmet>
 
-      {/* Two-column layout on xl+, single column below */}
-      <div className="w-full pr-1 sm:pr-3 xl:flex xl:gap-6 xl:items-start">
+      {/* Two-column layout on xl+, single column below - Trending panel aligned with Navbar right edge */}
+      <div className="w-full xl:pr-[calc(5vw-0.75rem)] xl:flex xl:gap-6 xl:items-start transition-all">
 
         {/* ====== Main Feed ====== */}
         <div className="flex-1 min-w-0 w-full flex flex-col gap-3 sm:gap-4">
@@ -71,12 +91,12 @@ export default function Home() {
 
           {/* Posts */}
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader2 className="animate-spin h-8 w-8 opacity-50" />
-              <span className="text-sm opacity-50">Loading posts...</span>
+            <div className="flex flex-col gap-3 sm:gap-4 w-full">
+              <PostSkeleton />
+              <PostSkeleton />
             </div>
           ) : isError ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 bg-white dark:bg-[#0f172a] rounded-2xl border border-gray-100 dark:border-white/8">
+            <div className="flex flex-col items-center justify-center py-20 gap-3 bg-white dark:bg-[#0f172a] rounded-2xl border border-gray-100 dark:border-white/8 shadow-xs">
               <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                 Couldn't load posts
               </p>
@@ -85,7 +105,7 @@ export default function Home() {
               </p>
               <button
                 onClick={() => refetch()}
-                className="mt-1 px-4 py-2 rounded-xl text-sm font-semibold bg-[#083695] text-white hover:bg-[#0a337c] transition-colors cursor-pointer"
+                className="mt-1 px-4 py-2 rounded-xl text-sm font-semibold bg-[#083695] text-white hover:bg-[#092f70] active:scale-95 transition-all cursor-pointer shadow-xs"
               >
                 Retry
               </button>
@@ -101,9 +121,9 @@ export default function Home() {
               ))}
 
               {/* Infinite-scroll sentinel */}
-              <div ref={sentinelRef} className="flex flex-col items-center py-6">
+              <div ref={sentinelRef} className="flex flex-col items-center py-6 w-full">
                 {isFetchingNextPage ? (
-                  <div className="flex flex-col items-center gap-2.5 bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/8 rounded-2xl px-8 py-5 shadow-sm w-full">
+                  <div className="flex flex-col items-center gap-2.5 bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/8 rounded-2xl px-8 py-5 shadow-xs w-full sm:w-[92%] lg:w-[85%] mx-auto">
                     <Loader2 className="animate-spin h-7 w-7 text-[#083695] dark:text-blue-400" />
                     <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
                       Loading {FEED_PAGE_SIZE} more posts...
@@ -112,7 +132,7 @@ export default function Home() {
                 ) : hasNextPage ? (
                   <button
                     onClick={loadMore}
-                    className="px-6 py-2.5 rounded-xl text-sm font-semibold border border-[#083695]/25 text-[#083695] dark:text-blue-300 dark:border-blue-400/25 hover:bg-[#083695]/8 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                    className="px-6 py-2.5 rounded-xl text-sm font-semibold border border-[#083695]/25 text-[#083695] dark:text-blue-300 dark:border-blue-400/25 hover:bg-[#083695]/8 dark:hover:bg-white/5 active:scale-95 transition-all cursor-pointer shadow-xs"
                   >
                     Load more
                   </button>
@@ -138,6 +158,11 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* ====== Right Sidebar (Desktop xl+) - Aligned with Navbar right edge ====== */}
+        <aside className="hidden xl:block w-80 2xl:w-88 shrink-0 sticky top-24 space-y-4">
+          <TrendingWidget posts={allposts} />
+        </aside>
       </div>
     </div>
   );

@@ -36,14 +36,14 @@ export function ChatHeader({
           {c.typing ? "typing..." : c.online ? (c.isGroup ? `${c.members} members` : "Active now") : c.lastActive || "Offline"}
         </p>
       </div>
-      <div className="flex items-center gap-0.5">
-        <button className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-[#083695]/8 hover:text-[#083695] dark:hover:bg-white/10 dark:hover:text-white cursor-pointer" aria-label="Voice call"><Phone size={18} /></button>
-        <button className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-[#083695]/8 hover:text-[#083695] dark:hover:bg-white/10 dark:hover:text-white cursor-pointer" aria-label="Video call"><Video size={19} /></button>
-        <button className="hidden sm:block p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-[#083695]/8 dark:hover:bg-white/10 cursor-pointer" aria-label="Search"><Search size={18} /></button>
+      <div className="flex items-center gap-1">
+        <button className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-[#083695]/10 hover:text-[#083695] dark:hover:bg-white/10 dark:hover:text-white active:scale-90 transition-all cursor-pointer" aria-label="Voice call" title="Start voice call"><Phone size={18} /></button>
+        <button className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-[#083695]/10 hover:text-[#083695] dark:hover:bg-white/10 dark:hover:text-white active:scale-90 transition-all cursor-pointer" aria-label="Video call" title="Start video call"><Video size={19} /></button>
+        <button className="hidden sm:block p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-[#083695]/10 hover:text-[#083695] dark:hover:bg-white/10 dark:hover:text-white active:scale-90 transition-all cursor-pointer" aria-label="Search" title="Search messages"><Search size={18} /></button>
         {onDeleteChat && (
           <button
             onClick={onDeleteChat}
-            className="p-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/15 transition-colors cursor-pointer"
+            className="p-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/15 active:scale-90 transition-all cursor-pointer ml-0.5"
             aria-label="Delete and close chat"
             title="Delete and close chat"
           >

@@ -25,6 +25,7 @@ import { AddComment } from "#components/comment/AddComment";
 import { usePostActions, API, authHeader } from "#hooks/usePostActions";
 import { commentsQueryKey } from "#hooks/useCommentActions";
 import EditPostModal from "#components/EditPostModal/EditPostModal";
+import MentionText from "../Mention/MentionText";
 
 /* -------------------------------- UserAvatar ------------------------------- */
 
@@ -106,11 +107,11 @@ export default function PostCard({
   });
 
   const iconButton =
-    "flex items-center justify-center gap-1.5 rounded-full min-h-10 min-w-10 px-2 sm:px-3 text-gray-500 hover:text-[#083695] dark:text-gray-400 dark:hover:text-white transition-colors";
+    "flex items-center justify-center gap-1.5 rounded-full min-h-10 min-w-10 px-2.5 sm:px-3 text-gray-500 hover:text-[#083695] dark:text-gray-400 dark:hover:text-white hover:bg-gray-100/70 dark:hover:bg-white/6 active:scale-90 transition-all duration-150 cursor-pointer select-none";
 
   /* --------------------------------- render -------------------------------- */
   return (
-    <div className="w-full sm:w-[92%] lg:w-[85%] mx-auto rounded-2xl shadow-sm border border-gray-100 dark:border-white/8 bg-white dark:bg-[#0f172a] text-[#083695] dark:text-white overflow-hidden">
+    <div className="w-full sm:w-[92%] lg:w-[85%] mx-auto rounded-2xl shadow-xs hover:shadow-md border border-gray-100 dark:border-white/8 hover:border-gray-200/80 dark:hover:border-white/15 bg-white dark:bg-[#0f172a] text-[#083695] dark:text-white overflow-hidden transition-all duration-200">
       {/* header */}
       <div className="flex items-center gap-2.5 sm:gap-3 p-3 sm:p-4 pb-2">
         <Link
@@ -137,7 +138,10 @@ export default function PostCard({
             )}
             <span className="text-xs opacity-70">@{authorUsername}</span>
           </div>
-          <span className="text-xs opacity-70 mt-0.5">
+          <span
+            className="text-xs opacity-70 mt-0.5 cursor-help"
+            title={new Date(post.createdAt).toLocaleString()}
+          >
             {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
           </span>
         </div>
@@ -186,7 +190,7 @@ export default function PostCard({
       <div className="p-3 sm:p-4 pt-2 pb-3">
         {post.body && (
           <p className="text-[13px] sm:text-sm whitespace-pre-wrap wrap-break-word leading-relaxed opacity-90 mb-2">
-            {post.body}
+            <MentionText text={post.body} />
           </p>
         )}
 
@@ -195,7 +199,7 @@ export default function PostCard({
             src={post.image}
             alt="Post"
             loading="lazy"
-            className="mt-2.5 sm:mt-3 w-full max-h-80 sm:max-h-125 md:max-h-175 object-cover rounded-xl sm:rounded-2xl cursor-pointer"
+            className="mt-2.5 sm:mt-3 w-full max-h-80 sm:max-h-125 md:max-h-175 object-cover rounded-xl sm:rounded-2xl cursor-pointer hover:opacity-95 transition-opacity duration-200"
             onClick={() => setShowImageModal(true)}
           />
         )}
@@ -239,7 +243,7 @@ export default function PostCard({
 
             {shared.body && (
               <p className="px-3.5 pb-2.5 text-xs whitespace-pre-wrap leading-relaxed">
-                {shared.body}
+                <MentionText text={shared.body} />
               </p>
             )}
             {shared.image && (
@@ -287,17 +291,23 @@ export default function PostCard({
           onClick={() => likeMutation.mutate()}
           disabled={likeMutation.isPending}
           aria-label={isLiked ? "Unlike post" : "Like post"}
-          className={`${iconButton} ${isLiked ? "text-[#083695] dark:text-blue-400" : ""}`}
+          className={`${iconButton} ${isLiked ? "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20" : ""}`}
         >
           <Heart
-            className={`h-5 w-5 ${isLiked ? "fill-[#083695] dark:fill-blue-400" : ""}`}
+            className={`h-5 w-5 transition-transform duration-200 active:scale-125 ${
+              isLiked ? "fill-rose-600 dark:fill-rose-400 text-rose-600 dark:text-rose-400" : ""
+            }`}
           />
-          <span className="text-xs font-medium">{post.likesCount}</span>
+          <span className="text-xs font-semibold">{post.likesCount}</span>
         </Button>
 
-        <Link to={`/post/${post._id}`} className={iconButton}>
+        <Link
+          to={`/post/${post._id}`}
+          className={iconButton}
+          aria-label="View post comments"
+        >
           <MessageCircle className="h-5 w-5" />
-          <span className="text-xs font-medium">{post.commentsCount}</span>
+          <span className="text-xs font-semibold">{post.commentsCount}</span>
         </Link>
 
         <Button
@@ -313,7 +323,7 @@ export default function PostCard({
               shareMutation.isPending ? "animate-pulse text-[#083695] dark:text-blue-400" : ""
             }`}
           />
-          <span className="text-xs font-medium">{post.sharesCount}</span>
+          <span className="text-xs font-semibold">{post.sharesCount}</span>
         </Button>
 
         <Button
@@ -325,7 +335,9 @@ export default function PostCard({
           className={iconButton}
         >
           <Bookmark
-            className={`h-5 w-5 ${isBookmarked ? "fill-[#083695] dark:fill-white" : ""}`}
+            className={`h-5 w-5 transition-transform duration-200 active:scale-125 ${
+              isBookmarked ? "fill-[#083695] dark:fill-white text-[#083695] dark:text-white" : ""
+            }`}
           />
         </Button>
       </div>
@@ -333,19 +345,19 @@ export default function PostCard({
       {/* image preview */}
       {showImageModal && post.image && (
         <div
-          className="fixed inset-0 z-100 bg-black/85 flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 z-100 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer transition-all duration-200 animate-in fade-in"
           onClick={() => setShowImageModal(false)}
         >
           <button
             aria-label="Close preview"
-            className="absolute top-5 right-5 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white"
+            className="absolute top-5 right-5 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
           >
             <X size={24} />
           </button>
           <img
             src={post.image}
             alt="Full preview"
-            className="max-w-[92vw] max-h-[90vh] object-contain rounded-2xl"
+            className="max-w-[92vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
