@@ -3,20 +3,57 @@ import type { ExtendedSearchUser } from "#components/Navbar/UserSearch";
 
 const USER_CACHE_KEY = "app_known_users";
 
+export interface MentionUser extends ExtendedSearchUser {
+  isFollower?: boolean;
+  isFollowing?: boolean;
+  priorityScore?: number;
+}
+
 /**
  * Returns a deduplicated list of all known users across:
  * 1. LocalStorage cached users ("app_known_users")
- * 2. Currently logged in user ("user")
+ * 2. Currently logged in user ("user") and their followers/following
  * 3. Any users stored in React Query cache (suggestions, feed posts, search-pool)
+ *
+ * Automatically prioritizes followers and people you follow at the top!
  */
-export function getAllKnownUsers(queryClient?: QueryClient): ExtendedSearchUser[] {
-  const userMap = new Map<string, ExtendedSearchUser>();
+export function getAllKnownUsers(queryClient?: QueryClient): MentionUser[] {
+  const userMap = new Map<string, MentionUser>();
+  const followersSet = new Set<string>();
+  const followingSet = new Set<string>();
+
+  // Determine current logged-in user ID and follower/following sets
+  let currentUserId: string | null = null;
+  try {
+    const raw = localStorage.getItem("user");
+    if (raw) {
+      const u = JSON.parse(raw);
+      currentUserId = u._id || u.id;
+      if (Array.isArray(u.followers)) {
+        u.followers.forEach((f: unknown) => {
+          const id = typeof f === "string" ? f : (f as { _id?: string })?._id;
+          if (id) followersSet.add(id);
+        });
+      }
+      if (Array.isArray(u.following)) {
+        u.following.forEach((f: unknown) => {
+          const id = typeof f === "string" ? f : (f as { _id?: string })?._id;
+          if (id) followingSet.add(id);
+        });
+      }
+    }
+  } catch {
+    //
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const addUser = (raw: any) => {
+  const addUser = (raw: any, isExplicitFollower = false, isExplicitFollowing = false) => {
     if (!raw || typeof raw !== "object") return;
     const id = raw._id || raw.id;
     if (!id || typeof id !== "string") return;
+
+    // Do not self-suggest
+    if (currentUserId && id === currentUserId) return;
 
     const existing = userMap.get(id);
     const name = raw.name || existing?.name || "";
@@ -30,6 +67,15 @@ export function getAllKnownUsers(queryClient?: QueryClient): ExtendedSearchUser[
         ? raw.followersCount
         : existing?.followersCount;
 
+    const isFollower = isExplicitFollower || followersSet.has(id) || existing?.isFollower;
+    const isFollowing = isExplicitFollowing || followingSet.has(id) || existing?.isFollowing;
+
+    let score = 0;
+    if (isFollower && isFollowing) score = 15;
+    else if (isFollower) score = 12;
+    else if (isFollowing) score = 10;
+    else score = 1;
+
     userMap.set(id, {
       _id: id,
       name,
@@ -37,10 +83,33 @@ export function getAllKnownUsers(queryClient?: QueryClient): ExtendedSearchUser[
       photo,
       followersCount,
       email: raw.email || existing?.email,
+      isFollower,
+      isFollowing,
+      priorityScore: score,
     });
   };
 
-  // 1. From persistent storage
+  // 1. Check current user's followers & following from cache
+  try {
+    const raw = localStorage.getItem("user");
+    if (raw) {
+      const u = JSON.parse(raw);
+      if (Array.isArray(u.followers)) {
+        u.followers.forEach((f: unknown) => {
+          if (f && typeof f === "object") addUser(f, true, false);
+        });
+      }
+      if (Array.isArray(u.following)) {
+        u.following.forEach((f: unknown) => {
+          if (f && typeof f === "object") addUser(f, false, true);
+        });
+      }
+    }
+  } catch {
+    //
+  }
+
+  // 2. From persistent storage
   try {
     const cached = localStorage.getItem(USER_CACHE_KEY);
     if (cached) {
@@ -53,14 +122,6 @@ export function getAllKnownUsers(queryClient?: QueryClient): ExtendedSearchUser[
     // Ignore cache parse errors
   }
 
-  // 2. Current user
-  try {
-    const raw = localStorage.getItem("user");
-    if (raw) addUser(JSON.parse(raw));
-  } catch {
-    //
-  }
-
   // 3. React Query cache
   if (queryClient) {
     try {
@@ -68,7 +129,19 @@ export function getAllKnownUsers(queryClient?: QueryClient): ExtendedSearchUser[
       const cachedQueries = queryClient.getQueriesData<any>({});
       for (const [, data] of cachedQueries) {
         if (!data) continue;
-        if (data.user) addUser(data.user);
+        if (data.user) {
+          addUser(data.user);
+          if (Array.isArray(data.user.followers)) {
+            data.user.followers.forEach((f: unknown) => {
+              if (f && typeof f === "object") addUser(f, true, false);
+            });
+          }
+          if (Array.isArray(data.user.following)) {
+            data.user.following.forEach((f: unknown) => {
+              if (f && typeof f === "object") addUser(f, false, true);
+            });
+          }
+        }
         if (data.data?.user) addUser(data.data.user);
 
         if (Array.isArray(data.suggestions)) {
@@ -101,7 +174,12 @@ export function getAllKnownUsers(queryClient?: QueryClient): ExtendedSearchUser[
     }
   }
 
-  const result = Array.from(userMap.values());
+  // Sort by priorityScore (followers/following first) then followersCount
+  const result = Array.from(userMap.values()).sort((a, b) => {
+    const scoreDiff = (b.priorityScore || 0) - (a.priorityScore || 0);
+    if (scoreDiff !== 0) return scoreDiff;
+    return (b.followersCount || 0) - (a.followersCount || 0);
+  });
 
   // Keep persistent storage updated with discovered users (max 200)
   try {

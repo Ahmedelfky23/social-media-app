@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Send, ImagePlus, Loader2 } from "lucide-react";
+import { Send, ImagePlus, Loader2, AtSign } from "lucide-react";
 import { UserAvatar } from "#components/PostCard/PostCard";
 import { Input } from "#components/ui/input";
 import { Button } from "#components/ui/button";
@@ -10,6 +10,8 @@ import { toast } from "#components/ui/toast";
 import { API, authHeader } from "#hooks/usePostActions";
 import { commentsQueryKey, repliesQueryKey } from "#hooks/useCommentActions";
 import type { CommentType } from "../../types/Comment.type";
+import { useMentionInput } from "../Mention/useMentionInput";
+import { MentionSuggestionsList } from "../Mention/MentionSuggestionsList";
 
 export function AddReply({
   postId,
@@ -37,9 +39,25 @@ export function AddReply({
 }) {
   const { userLogin } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [image, setImage] = useState<File | null>(null);
   const [content, setContent] = useState("");
   const queryClient = useQueryClient();
+
+  const {
+    isSuggesting,
+    suggestions,
+    activeIndex,
+    setActiveIndex,
+    selectSuggestion,
+    handleKeyDown,
+    triggerMention,
+    updateCursor,
+  } = useMentionInput({
+    value: content,
+    onChange: setContent,
+    inputRef,
+  });
 
   const { mutate, isPending } = useMutation({
     mutationFn: (formData: FormData) =>
@@ -108,10 +126,23 @@ export function AddReply({
     <form
       onSubmit={handleSubmit}
       className={
-        className ??
-        "mt-2 ml-3 sm:ml-8 rounded-xl border border-[#083695]/30 bg-white p-1.5 transition-colors focus-within:border-[#083695]/40 focus-within:ring-2 focus-within:ring-[#083695]/10 dark:border-white/8 dark:bg-white/5 dark:focus-within:border-blue-400/40 dark:focus-within:ring-blue-400/10"
+        `relative ${className ?? "mt-2 ml-3 sm:ml-8 rounded-xl border border-[#083695]/30 bg-white p-1.5 transition-colors focus-within:border-[#083695]/40 focus-within:ring-2 focus-within:ring-[#083695]/10 dark:border-white/8 dark:bg-white/5 dark:focus-within:border-blue-400/40 dark:focus-within:ring-blue-400/10"}`
       }
     >
+      {/* Mention dropdown positioned above the reply box */}
+      {isSuggesting && (
+        <div className="absolute left-0 right-0 bottom-full mb-1.5 z-50">
+          <MentionSuggestionsList
+            isOpen={isSuggesting}
+            suggestions={suggestions}
+            activeIndex={activeIndex}
+            onSelect={selectSuggestion}
+            onHoverIndex={setActiveIndex}
+            position="top"
+          />
+        </div>
+      )}
+
       <div className="flex items-center gap-1 sm:gap-2 min-w-0">
         <UserAvatar
           photo={userLogin?.photo}
@@ -119,13 +150,34 @@ export function AddReply({
           className="h-6 w-6 shrink-0"
         />
         <Input
+          ref={inputRef}
           value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder={placeholder ?? (replyTo ? `Reply to ${replyTo.name}...` : "Write a reply...")}
+          onChange={(e) => {
+            setContent(e.target.value);
+            updateCursor();
+          }}
+          onKeyDown={handleKeyDown}
+          onKeyUp={updateCursor}
+          onClick={updateCursor}
+          onSelect={updateCursor}
+          placeholder={placeholder ?? (replyTo ? `Reply to ${replyTo.name}... (@ to mention)` : "Write a reply... (@ to mention)")}
           aria-label="Write a reply"
           autoFocus={autoFocus}
           className="h-7 flex-1 bg-transparent px-1 text-xs shadow-none border border-[#083695]/20 focus-visible:ring-0 focus-visible:border-transparent dark:bg-transparent"
         />
+
+        {/* Quick mention button */}
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Mention someone"
+          title="Mention someone (@)"
+          onClick={triggerMention}
+          className="shrink-0 rounded-full text-gray-500 hover:bg-[#083695]/10 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-blue-400/10 dark:hover:text-blue-300"
+        >
+          <AtSign className="size-3.5" />
+        </Button>
 
         {/* image upload button */}
         <Button

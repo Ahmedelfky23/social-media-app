@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, type RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getAllKnownUsers } from "./mentionUtils";
-import type { ExtendedSearchUser } from "#components/Navbar/UserSearch";
+import { getAllKnownUsers, type MentionUser } from "./mentionUtils";
 
 export function useMentionInput({
   value,
@@ -67,7 +66,7 @@ export function useMentionInput({
 
   // Select user and replace `@query` with `@username `
   const selectSuggestion = useCallback(
-    (user: ExtendedSearchUser) => {
+    (user: MentionUser) => {
       if (!mentionMatch) return;
       const handle =
         user.username ||

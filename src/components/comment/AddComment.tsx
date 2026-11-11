@@ -1,26 +1,37 @@
 import { useRef, useState } from "react";
-import { Send, ImagePlus, Loader2 } from "lucide-react";
+import { Send, ImagePlus, Loader2, AtSign } from "lucide-react";
 import { UserAvatar } from "#components/PostCard/PostCard";
 import { Input } from "#components/ui/input";
 import { Button } from "#components/ui/button";
 import { useAuth } from "../../context/AuthContext";
-import { useForm } from "react-hook-form";
 import axios from "axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "#components/ui/toast";
+import { useMentionInput } from "../Mention/useMentionInput";
+import { MentionSuggestionsList } from "../Mention/MentionSuggestionsList";
 
 export function AddComment({ postId }: { postId: string }) {
   const { userLogin } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [image, setImage] = useState<File | null>(null);
+  const [content, setContent] = useState("");
   const queryClient = useQueryClient();
 
-  const { register, handleSubmit, reset } = useForm({
-    defaultValues: {
-      content: "",
-    },
+  const {
+    isSuggesting,
+    suggestions,
+    activeIndex,
+    setActiveIndex,
+    selectSuggestion,
+    handleKeyDown,
+    triggerMention,
+    updateCursor,
+  } = useMentionInput({
+    value: content,
+    onChange: setContent,
+    inputRef,
   });
-
 
   const { mutate, isPending } = useMutation({
     mutationFn: (formData: FormData) =>
@@ -32,7 +43,7 @@ export function AddComment({ postId }: { postId: string }) {
         },
       ),
     onSuccess: () => {
-      reset();
+      setContent("");
       setImage(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       queryClient.invalidateQueries({ queryKey: ["comments", postId] });
@@ -61,9 +72,9 @@ export function AddComment({ postId }: { postId: string }) {
     setImage(e.target.files?.[0] ?? null);
   }
 
-  function handelAddComment(values: { content: string }) {
-    const text = values.content?.trim();
-
+  function handleAddComment(e: React.FormEvent) {
+    e.preventDefault();
+    const text = content.trim();
     if (!text && !image) return;
 
     const formData = new FormData();
@@ -73,12 +84,25 @@ export function AddComment({ postId }: { postId: string }) {
     mutate(formData);
   }
 
-
   return (
     <form
-      onSubmit={handleSubmit(handelAddComment)}
-      className="mt-3 rounded-xl border border-[#083695]/50 bg-white p-1.5 transition-colors focus-within:border-[#083695]/40 focus-within:ring-2 focus-within:ring-[#083695]/15 dark:border-white/8 dark:bg-white/5 dark:focus-within:border-blue-400/40 dark:focus-within:ring-blue-400/15"
+      onSubmit={handleAddComment}
+      className="relative mt-3 rounded-xl border border-[#083695]/50 bg-white p-1.5 transition-colors focus-within:border-[#083695]/40 focus-within:ring-2 focus-within:ring-[#083695]/15 dark:border-white/8 dark:bg-white/5 dark:focus-within:border-blue-400/40 dark:focus-within:ring-blue-400/15"
     >
+      {/* Mention dropdown positioned above the comment box */}
+      {isSuggesting && (
+        <div className="absolute left-0 right-0 bottom-full mb-1.5 z-50">
+          <MentionSuggestionsList
+            isOpen={isSuggesting}
+            suggestions={suggestions}
+            activeIndex={activeIndex}
+            onSelect={selectSuggestion}
+            onHoverIndex={setActiveIndex}
+            position="top"
+          />
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         <UserAvatar
           photo={userLogin?.photo}
@@ -86,11 +110,33 @@ export function AddComment({ postId }: { postId: string }) {
           className="h-7 w-7 shrink-0"
         />
         <Input
-          {...register("content")}
-          placeholder="Write a comment..."
+          ref={inputRef}
+          value={content}
+          onChange={(e) => {
+            setContent(e.target.value);
+            updateCursor();
+          }}
+          onKeyDown={handleKeyDown}
+          onKeyUp={updateCursor}
+          onClick={updateCursor}
+          onSelect={updateCursor}
+          placeholder="Write a comment... (Type @ to mention)"
           aria-label="Write a comment"
-          className="h-8 flex-1  bg-transparent px-1 shadow-none border border-[#083695]/30 focus-visible:ring-0 focus-visible:border-transparent dark:bg-transparent"
+          className="h-8 flex-1 bg-transparent px-1 shadow-none border border-[#083695]/30 focus-visible:ring-0 focus-visible:border-transparent dark:bg-transparent"
         />
+
+        {/* Quick mention button */}
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Mention someone"
+          title="Mention someone (@)"
+          onClick={triggerMention}
+          className="shrink-0 rounded-full text-gray-500 hover:bg-[#083695]/10 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-blue-400/10 dark:hover:text-blue-300"
+        >
+          <AtSign className="size-4" />
+        </Button>
 
         {/* image upload button */}
         <Button
@@ -121,7 +167,7 @@ export function AddComment({ postId }: { postId: string }) {
         <Button
           type="submit"
           size="icon-sm"
-          disabled={isPending }
+          disabled={isPending || (!content.trim() && !image)}
           aria-label="Send comment"
           className="shrink-0 rounded-full bg-[#083695] text-white hover:bg-[#083695]/90 dark:bg-blue-500 dark:hover:bg-blue-500/90"
         >
