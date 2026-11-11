@@ -70,7 +70,7 @@ export const MentionText: React.FC<MentionTextProps> = ({ text, className = "" }
               type="button"
               onClick={(e) => handleMentionClick(e, trimmed)}
               title={matched ? `View ${matched.name} (@${matched.username || cleanHandle})` : `View @${cleanHandle}`}
-              className="inline-flex items-center text-[#083695] dark:text-blue-400 font-semibold bg-[#083695]/10 hover:bg-[#083695]/20 dark:bg-blue-400/15 dark:hover:bg-blue-400/25 px-1.5 py-0.5 -my-0.5 rounded-md transition-all cursor-pointer align-baseline select-none"
+              className="inline-flex items-center text-[#083695] dark:text-blue-400 font-semibold bg-[#083695]/10 hover:bg-[#083695]/20 dark:bg-blue-400/15 dark:hover:bg-blue-400/25 px-1.5 py-0.5 -my-0.5 rounded-md transition-all cursor-pointer align-baseline select-none break-all sm:break-normal active:scale-95 touch-manipulation"
             >
               @{cleanHandle}
             </button>

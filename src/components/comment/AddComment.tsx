@@ -103,11 +103,11 @@ export function AddComment({ postId }: { postId: string }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <UserAvatar
           photo={userLogin?.photo}
           name={userLogin?.name}
-          className="h-7 w-7 shrink-0"
+          className="h-6.5 w-6.5 sm:h-7 sm:w-7 shrink-0"
         />
         <Input
           ref={inputRef}
@@ -120,9 +120,9 @@ export function AddComment({ postId }: { postId: string }) {
           onKeyUp={updateCursor}
           onClick={updateCursor}
           onSelect={updateCursor}
-          placeholder="Write a comment... (Type @ to mention)"
+          placeholder="Write a comment..."
           aria-label="Write a comment"
-          className="h-8 flex-1 bg-transparent px-1 shadow-none border border-[#083695]/30 focus-visible:ring-0 focus-visible:border-transparent dark:bg-transparent"
+          className="h-8 flex-1 min-w-0 bg-transparent px-2 text-xs sm:text-sm shadow-none border border-[#083695]/30 focus-visible:ring-0 focus-visible:border-transparent dark:bg-transparent placeholder:text-gray-400"
         />
 
         {/* Quick mention button */}
@@ -133,9 +133,9 @@ export function AddComment({ postId }: { postId: string }) {
           aria-label="Mention someone"
           title="Mention someone (@)"
           onClick={triggerMention}
-          className="shrink-0 rounded-full text-gray-500 hover:bg-[#083695]/10 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-blue-400/10 dark:hover:text-blue-300"
+          className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-full text-gray-500 hover:bg-[#083695]/10 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-blue-400/10 dark:hover:text-blue-300"
         >
-          <AtSign className="size-4" />
+          <AtSign className="size-3.5 sm:size-4" />
         </Button>
 
         {/* image upload button */}
@@ -145,9 +145,9 @@ export function AddComment({ postId }: { postId: string }) {
           variant="ghost"
           aria-label="Attach image"
           onClick={() => fileInputRef.current?.click()}
-          className="shrink-0 rounded-full text-gray-500 hover:bg-[#083695]/10 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-blue-400/10 dark:hover:text-blue-300"
+          className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-full text-gray-500 hover:bg-[#083695]/10 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-blue-400/10 dark:hover:text-blue-300"
         >
-          <ImagePlus className="size-4" />
+          <ImagePlus className="size-3.5 sm:size-4" />
         </Button>
         <input
           ref={fileInputRef}
@@ -159,7 +159,7 @@ export function AddComment({ postId }: { postId: string }) {
           tabIndex={-1}
         />
         {image && (
-          <span className="max-w-24 truncate text-[11px] text-gray-500 dark:text-gray-400">
+          <span className="max-w-16 sm:max-w-24 truncate text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
             {image.name}
           </span>
         )}
@@ -169,12 +169,12 @@ export function AddComment({ postId }: { postId: string }) {
           size="icon-sm"
           disabled={isPending || (!content.trim() && !image)}
           aria-label="Send comment"
-          className="shrink-0 rounded-full bg-[#083695] text-white hover:bg-[#083695]/90 dark:bg-blue-500 dark:hover:bg-blue-500/90"
+          className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-full bg-[#083695] text-white hover:bg-[#083695]/90 dark:bg-blue-500 dark:hover:bg-blue-500/90 active:scale-95"
         >
           {isPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-3.5 sm:size-4 animate-spin" />
           ) : (
-            <Send className="size-4" />
+            <Send className="size-3.5 sm:size-4" />
           )}
         </Button>
       </div>

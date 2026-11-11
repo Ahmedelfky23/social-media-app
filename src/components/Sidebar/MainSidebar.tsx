@@ -232,6 +232,27 @@ export default function MainSidebar() {
             </div>
           ))}
         </div>
+
+        {/* Mobile footer links in drawer */}
+        <div className="md:hidden mt-6 pt-4 border-t border-[#083695]/10 dark:border-white/10 px-2 space-y-2">
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium">
+            <NavLink to="/about" onClick={() => setOpen(false)} className="hover:text-[#083695] dark:hover:text-blue-400 hover:underline">
+              About
+            </NavLink>
+            <NavLink to="/privacy" onClick={() => setOpen(false)} className="hover:text-[#083695] dark:hover:text-blue-400 hover:underline">
+              Privacy
+            </NavLink>
+            <NavLink to="/terms" onClick={() => setOpen(false)} className="hover:text-[#083695] dark:hover:text-blue-400 hover:underline">
+              Terms
+            </NavLink>
+            <NavLink to="/help" onClick={() => setOpen(false)} className="hover:text-[#083695] dark:hover:text-blue-400 hover:underline">
+              Help
+            </NavLink>
+          </div>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500">
+            © 2026 SocialApp. Developed by Ahmed El-Feky.
+          </p>
+        </div>
       </div>
 
       {/* User avatar at bottom */}

@@ -52,7 +52,7 @@ export default function Privacy() {
   ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-4 sm:py-6 text-gray-800 dark:text-gray-100 transition-colors">
+    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 sm:py-6 text-gray-800 dark:text-gray-100 transition-colors">
       <Helmet>
         <title>Privacy Policy | SocialApp</title>
         <meta
@@ -64,14 +64,14 @@ export default function Privacy() {
       {/* Back button */}
       <Link
         to="/home"
-        className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-500 hover:text-[#083695] dark:text-gray-400 dark:hover:text-blue-400 transition-colors mb-6 group"
+        className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-500 hover:text-[#083695] dark:text-gray-400 dark:hover:text-blue-400 transition-colors mb-4 sm:mb-6 group"
       >
         <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
         Back to feed
       </Link>
 
       {/* Hero Header */}
-      <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-8 border border-gray-100 dark:border-white/8 shadow-xs mb-8">
+      <div className="bg-white dark:bg-[#0f172a] rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-gray-100 dark:border-white/8 shadow-xs mb-6 sm:mb-8">
         <div className="flex items-center gap-3 sm:gap-4 mb-3">
           <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
             <Lock className="h-6 w-6 sm:h-7 sm:w-7" />

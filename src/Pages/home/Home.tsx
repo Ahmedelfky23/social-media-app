@@ -1,5 +1,6 @@
 import { useContext, useCallback, useEffect, useRef, useMemo } from "react";
 import { Helmet } from "react-helmet";
+import { Link } from "react-router-dom";
 import PostCard from "../../components/PostCard/PostCard";
 import CreatePost from "../../components/CreatePost/CreatePost";
 import TrendingWidget from "../../components/TrendingWidget/TrendingWidget";
@@ -157,6 +158,30 @@ export default function Home() {
               </p>
             </div>
           )}
+
+          {/* Mobile Footer Links (below xl) */}
+          <div className="xl:hidden w-full sm:w-[92%] lg:w-[85%] mx-auto pt-6 pb-4 px-4 text-center space-y-2 border-t border-gray-100 dark:border-white/8 text-xs text-gray-400 dark:text-gray-500">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-medium">
+              <Link to="/about" className="hover:text-[#083695] dark:hover:text-blue-400 hover:underline transition-colors">
+                About
+              </Link>
+              <span>·</span>
+              <Link to="/privacy" className="hover:text-[#083695] dark:hover:text-blue-400 hover:underline transition-colors">
+                Privacy
+              </Link>
+              <span>·</span>
+              <Link to="/terms" className="hover:text-[#083695] dark:hover:text-blue-400 hover:underline transition-colors">
+                Terms
+              </Link>
+              <span>·</span>
+              <Link to="/help" className="hover:text-[#083695] dark:hover:text-blue-400 hover:underline transition-colors">
+                Help
+              </Link>
+            </div>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">
+              © 2026 SocialApp. Developed by Ahmed El-Feky.
+            </p>
+          </div>
         </div>
 
         {/* ====== Right Sidebar (Desktop xl+) - Aligned with Navbar right edge ====== */}

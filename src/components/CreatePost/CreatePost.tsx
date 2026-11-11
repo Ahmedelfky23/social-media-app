@@ -122,9 +122,9 @@ export default function CreatePost() {
             onClick={updateCursor}
             onSelect={updateCursor}
             rows={2}
-            placeholder={`What's on your mind, ${firstName}? (Type @ to mention)`}
+            placeholder={`What's on your mind, ${firstName}?`}
             aria-label="Write a post"
-            className="w-full min-h-11 resize-none overflow-hidden bg-transparent py-2.5 text-sm text-[#083695] dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none border border-[#083695]/10 dark:border-white/10 rounded-xl px-3 focus:border-[#083695]/40 dark:focus:border-blue-400/50 focus:ring-2 focus:ring-[#083695]/10 dark:focus:ring-blue-400/15 transition-all"
+            className="w-full min-h-11 resize-none overflow-hidden bg-transparent py-2.5 text-xs sm:text-sm text-[#083695] dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none border border-[#083695]/10 dark:border-white/10 rounded-xl px-3 focus:border-[#083695]/40 dark:focus:border-blue-400/50 focus:ring-2 focus:ring-[#083695]/10 dark:focus:ring-blue-400/15 transition-all"
           />
 
           {/* Autocomplete mention suggestions dropdown */}
@@ -164,22 +164,22 @@ export default function CreatePost() {
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-gray-100 pt-3 dark:border-white/8">
-        <div className="flex items-center gap-1.5 sm:gap-2">
+      <div className="mt-3 flex items-center justify-between gap-1.5 sm:gap-2 border-t border-gray-100 pt-3 dark:border-white/8">
+        <div className="flex items-center gap-1 sm:gap-2">
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
-            className="group flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-600 transition-all hover:bg-gray-100/70 hover:text-[#083695] dark:text-gray-300 dark:hover:bg-white/8 dark:hover:text-white cursor-pointer active:scale-95"
+            className="group flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-semibold text-gray-600 transition-all hover:bg-gray-100/70 hover:text-[#083695] dark:text-gray-300 dark:hover:bg-white/8 dark:hover:text-white cursor-pointer active:scale-95"
           >
-            <ImagePlus size={18} className="text-emerald-500 group-hover:scale-110 transition-transform duration-200" /> Photo
+            <ImagePlus size={17} className="text-emerald-500 group-hover:scale-110 transition-transform duration-200" /> Photo
           </button>
 
           <button
             type="button"
             onClick={triggerMention}
-            className="group flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-2 text-xs font-semibold text-gray-600 transition-all hover:bg-gray-100/70 hover:text-[#083695] dark:text-gray-300 dark:hover:bg-white/8 dark:hover:text-white cursor-pointer active:scale-95"
+            className="group flex items-center gap-1 sm:gap-1.5 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 text-xs font-semibold text-gray-600 transition-all hover:bg-gray-100/70 hover:text-[#083695] dark:text-gray-300 dark:hover:bg-white/8 dark:hover:text-white cursor-pointer active:scale-95"
           >
-            <AtSign size={17} className="text-[#083695] dark:text-blue-400 group-hover:scale-110 transition-transform duration-200" /> Mention
+            <AtSign size={16} className="text-[#083695] dark:text-blue-400 group-hover:scale-110 transition-transform duration-200" /> Mention
           </button>
         </div>
 
@@ -193,7 +193,7 @@ export default function CreatePost() {
           tabIndex={-1}
         />
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {body.trim().length > 0 && (
             <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500 hidden sm:inline">
               {body.trim().length} chars
@@ -203,7 +203,7 @@ export default function CreatePost() {
           <Button
             type="submit"
             disabled={!canPost}
-            className="rounded-full bg-[#083695] px-5 sm:px-6 py-2 min-h-10 text-white hover:bg-[#092f70] dark:bg-blue-600 dark:hover:bg-blue-500 active:scale-95 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-full bg-[#083695] px-4 sm:px-6 py-1.5 sm:py-2 min-h-9 sm:min-h-10 text-xs sm:text-sm text-white hover:bg-[#092f70] dark:bg-blue-600 dark:hover:bg-blue-500 active:scale-95 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPending ? (
               <>

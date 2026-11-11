@@ -41,7 +41,7 @@ export default function About() {
   ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-4 sm:py-6 text-gray-800 dark:text-gray-100 transition-colors">
+    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 sm:py-6 text-gray-800 dark:text-gray-100 transition-colors">
       <Helmet>
         <title>About Us | SocialApp</title>
         <meta
@@ -60,21 +60,21 @@ export default function About() {
       </Link>
 
       {/* Hero Header */}
-      <div className="relative overflow-hidden bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-10 border border-gray-100 dark:border-white/8 shadow-xs mb-8">
-        <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+      <div className="relative overflow-hidden bg-white dark:bg-[#0f172a] rounded-2xl sm:rounded-3xl p-5 sm:p-10 border border-gray-100 dark:border-white/8 shadow-xs mb-6 sm:mb-8">
+        <div className="relative z-10 flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
           <img
             src={logo}
             alt="SocialApp Logo"
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-4 ring-[#083695]/15 dark:ring-white/10 shadow-md shrink-0"
+            className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl object-cover ring-4 ring-[#083695]/15 dark:ring-white/10 shadow-md shrink-0"
           />
           <div className="text-center sm:text-left">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#083695]/10 text-[#083695] dark:bg-blue-400/15 dark:text-blue-300 mb-2">
               <Sparkles size={13} /> The Future of Social Networking
             </span>
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+            <h1 className="text-xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">
               About SocialApp
             </h1>
-            <p className="mt-2 text-sm sm:text-base text-gray-500 dark:text-gray-400 leading-relaxed max-w-2xl">
+            <p className="mt-2 text-xs sm:text-base text-gray-500 dark:text-gray-400 leading-relaxed max-w-2xl">
               SocialApp is a high-performance, real-time social networking platform engineered to connect people seamlessly through rich media feeds, threaded discussions, and live conversations.
             </p>
           </div>

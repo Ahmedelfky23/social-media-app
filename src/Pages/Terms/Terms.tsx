@@ -42,7 +42,7 @@ export default function Terms() {
   ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-4 sm:py-6 text-gray-800 dark:text-gray-100 transition-colors">
+    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 sm:py-6 text-gray-800 dark:text-gray-100 transition-colors">
       <Helmet>
         <title>Terms of Service | SocialApp</title>
         <meta
@@ -54,14 +54,14 @@ export default function Terms() {
       {/* Navigation back */}
       <Link
         to="/home"
-        className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-500 hover:text-[#083695] dark:text-gray-400 dark:hover:text-blue-400 transition-colors mb-6 group"
+        className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-500 hover:text-[#083695] dark:text-gray-400 dark:hover:text-blue-400 transition-colors mb-4 sm:mb-6 group"
       >
         <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
         Back to feed
       </Link>
 
       {/* Header */}
-      <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-8 border border-gray-100 dark:border-white/8 shadow-xs mb-8">
+      <div className="bg-white dark:bg-[#0f172a] rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-gray-100 dark:border-white/8 shadow-xs mb-6 sm:mb-8">
         <div className="flex items-center gap-3 mb-3">
           <div className="h-10 w-10 rounded-xl bg-[#083695]/10 dark:bg-blue-400/15 text-[#083695] dark:text-blue-400 flex items-center justify-center">
             <Scale size={20} />

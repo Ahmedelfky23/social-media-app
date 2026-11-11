@@ -126,7 +126,7 @@ export function AddReply({
     <form
       onSubmit={handleSubmit}
       className={
-        `relative ${className ?? "mt-2 ml-3 sm:ml-8 rounded-xl border border-[#083695]/30 bg-white p-1.5 transition-colors focus-within:border-[#083695]/40 focus-within:ring-2 focus-within:ring-[#083695]/10 dark:border-white/8 dark:bg-white/5 dark:focus-within:border-blue-400/40 dark:focus-within:ring-blue-400/10"}`
+        `relative ${className ?? "mt-2 ml-1.5 sm:ml-8 rounded-xl border border-[#083695]/30 bg-white p-1.5 transition-colors focus-within:border-[#083695]/40 focus-within:ring-2 focus-within:ring-[#083695]/10 dark:border-white/8 dark:bg-white/5 dark:focus-within:border-blue-400/40 dark:focus-within:ring-blue-400/10"}`
       }
     >
       {/* Mention dropdown positioned above the reply box */}
@@ -160,10 +160,10 @@ export function AddReply({
           onKeyUp={updateCursor}
           onClick={updateCursor}
           onSelect={updateCursor}
-          placeholder={placeholder ?? (replyTo ? `Reply to ${replyTo.name}... (@ to mention)` : "Write a reply... (@ to mention)")}
+          placeholder={placeholder ?? (replyTo ? `Reply to ${replyTo.name}...` : "Write a reply...")}
           aria-label="Write a reply"
           autoFocus={autoFocus}
-          className="h-7 flex-1 bg-transparent px-1 text-xs shadow-none border border-[#083695]/20 focus-visible:ring-0 focus-visible:border-transparent dark:bg-transparent"
+          className="h-7 flex-1 min-w-0 bg-transparent px-1.5 text-xs shadow-none border border-[#083695]/20 focus-visible:ring-0 focus-visible:border-transparent dark:bg-transparent placeholder:text-gray-400"
         />
 
         {/* Quick mention button */}
@@ -174,9 +174,9 @@ export function AddReply({
           aria-label="Mention someone"
           title="Mention someone (@)"
           onClick={triggerMention}
-          className="shrink-0 rounded-full text-gray-500 hover:bg-[#083695]/10 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-blue-400/10 dark:hover:text-blue-300"
+          className="shrink-0 h-6.5 w-6.5 sm:h-7 sm:w-7 p-0 rounded-full text-gray-500 hover:bg-[#083695]/10 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-blue-400/10 dark:hover:text-blue-300"
         >
-          <AtSign className="size-3.5" />
+          <AtSign className="size-3 sm:size-3.5" />
         </Button>
 
         {/* image upload button */}
@@ -186,9 +186,9 @@ export function AddReply({
           variant="ghost"
           aria-label="Attach image"
           onClick={() => fileInputRef.current?.click()}
-          className="shrink-0 rounded-full text-gray-500 hover:bg-[#083695]/10 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-blue-400/10 dark:hover:text-blue-300"
+          className="shrink-0 h-6.5 w-6.5 sm:h-7 sm:w-7 p-0 rounded-full text-gray-500 hover:bg-[#083695]/10 hover:text-[#083695] dark:text-gray-400 dark:hover:bg-blue-400/10 dark:hover:text-blue-300"
         >
-          <ImagePlus className="size-3.5" />
+          <ImagePlus className="size-3 sm:size-3.5" />
         </Button>
         <input
           ref={fileInputRef}

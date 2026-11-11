@@ -34,7 +34,7 @@ export const MentionSuggestionsList: React.FC<Props> = ({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: yInit / 2, scale: 0.98 }}
         transition={{ duration: 0.15 }}
-        className={`bg-white dark:bg-[#0f172a] rounded-2xl border border-gray-200/90 dark:border-white/10 shadow-2xl overflow-hidden p-1.5 z-50 backdrop-blur-md max-h-60 overflow-y-auto ${className}`}
+        className={`bg-white dark:bg-[#0f172a] rounded-2xl border border-gray-200/90 dark:border-white/10 shadow-2xl overflow-hidden p-1.5 z-50 backdrop-blur-md max-h-52 sm:max-h-60 overflow-y-auto overscroll-contain touch-pan-y ${className}`}
       >
         <div className="flex items-center justify-between px-2.5 py-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-white/5 mb-1">
           <div className="flex items-center gap-1.5">
@@ -56,7 +56,7 @@ export const MentionSuggestionsList: React.FC<Props> = ({
                 type="button"
                 onMouseEnter={() => onHoverIndex(idx)}
                 onClick={() => onSelect(user)}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-left transition-all cursor-pointer select-none ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 sm:py-1.5 rounded-xl text-left transition-all cursor-pointer select-none touch-manipulation active:scale-[0.99] ${
                   isActive
                     ? "bg-[#083695]/10 text-[#083695] dark:bg-blue-400/20 dark:text-blue-300"
                     : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5"
